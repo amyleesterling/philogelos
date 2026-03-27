@@ -1,0 +1,34 @@
+name: Daily Philogelos Question
+
+on:
+  schedule:
+    - cron: '17 13 * * *'  # 9:17am ET daily (13:17 UTC)
+  workflow_dispatch:  # manual trigger
+
+jobs:
+  send-question:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install twilio
+
+      - name: Send daily question
+        env:
+          TWILIO_SID: ${{ secrets.TWILIO_SID }}
+          TWILIO_TOKEN: ${{ secrets.TWILIO_TOKEN }}
+          TWILIO_FROM: ${{ secrets.TWILIO_FROM }}
+          TO_PHONE: ${{ secrets.TO_PHONE }}
+        run: python scripts/daily-question.py
+
+      - name: Save sent history
+        run: |
+          git config user.name "Philogelos Bot"
+          git config user.email "noreply@philogelos.app"
+          git add scripts/sent.json
+          git diff --cached --quiet || git commit -m "Update sent questions"
+          git push
