@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ytho — a daily question you can't stop thinking about</title>
+<meta name="description" content="One funny philosophical question per day, delivered by text. It'll make you laugh. Then it'll make you think. Then you'll wonder why a text message just changed your whole afternoon.">
+<meta name="author" content="Amy Sterling and Claude">
+<link rel="canonical" href="https://ytho.club/">
+
+<meta property="og:title" content="ytho.club">
+<meta property="og:description" content="One funny question per day. By text. You'll laugh first. Think later.">
+<meta property="og:url" content="https://ytho.club/">
+<meta property="og:type" content="website">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="ytho.club">
+<meta name="twitter:description" content="A daily text that asks you a question you can't stop thinking about.">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='12' fill='%230a0a0f'/><text x='50' y='72' font-size='50' text-anchor='middle' fill='%23d4af37' font-family='serif'>?</text></svg>">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Inter:wght@300;400&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --gold: #d4af37;
+    --deep: #0a0a0f;
+    --cream: #f5f0e8;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--deep);
+    color: var(--cream);
+    font-family: 'Inter', sans-serif;
+    overflow-x: hidden;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ══════════ HERO ══════════ */
+  .hero {
+    text-align: center;
+    padding: 2rem;
+    max-width: 700px;
+    animation: fadeUp 1.5s ease;
+  }
+
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(3rem, 12vw, 8rem);
+    font-weight: 900;
+    color: var(--gold);
+    letter-spacing: -0.03em;
+    text-shadow: 0 0 60px rgba(212,175,55,0.2);
+    margin-bottom: 0.5rem;
+  }
+
+  .tagline {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: clamp(1rem, 2.5vw, 1.4rem);
+    color: #888;
+    margin-bottom: 3rem;
+    line-height: 1.6;
+  }
+
+  /* ══════════ SAMPLE QUESTION ══════════ */
+  .sample {
+    background: rgba(212,175,55,0.05);
+    border: 1px solid rgba(212,175,55,0.15);
+    border-radius: 16px;
+    padding: 2rem 2.5rem;
+    margin-bottom: 3rem;
+    position: relative;
+  }
+
+  .sample-label {
+    position: absolute;
+    top: -10px;
+    left: 24px;
+    background: var(--deep);
+    padding: 0 8px;
+    font-size: 0.7rem;
+    color: #555;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .sample-q {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+    color: var(--cream);
+    line-height: 1.6;
+    font-style: italic;
+  }
+
+  .new-q {
+    color: var(--gold);
+    background: none;
+    border: none;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8rem;
+    cursor: pointer;
+    margin-top: 1rem;
+    opacity: 0.5;
+    transition: opacity 0.3s;
+    display: block;
+  }
+  .new-q:hover { opacity: 1; }
+
+  /* ══════════ SIGNUP ══════════ */
+  .signup {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .signup input {
+    background: transparent;
+    border: 1px solid #333;
+    color: var(--cream);
+    font-family: 'Inter', sans-serif;
+    font-size: 1rem;
+    padding: 0.9rem 1.2rem;
+    border-radius: 8px;
+    outline: none;
+    width: 240px;
+    transition: border-color 0.3s;
+  }
+  .signup input:focus { border-color: var(--gold); }
+  .signup input::placeholder { color: #444; }
+
+  .signup button {
+    background: var(--gold);
+    color: var(--deep);
+    border: none;
+    font-family: 'Playfair Display', serif;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 0.9rem 2rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  .signup button:hover {
+    box-shadow: 0 0 40px rgba(212,175,55,0.3);
+    transform: translateY(-1px);
+  }
+
+  .fine-print {
+    color: #444;
+    font-size: 0.75rem;
+    font-style: italic;
+    margin-bottom: 4rem;
+  }
+
+  /* ══════════ HOW IT WORKS ══════════ */
+  .how {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 4rem;
+    padding: 0 1rem;
+  }
+
+  .step {
+    text-align: center;
+    max-width: 180px;
+  }
+
+  .step-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem;
+    color: var(--gold);
+    opacity: 0.6;
+  }
+
+  .step-text {
+    color: #777;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    margin-top: 0.5rem;
+  }
+
+  /* ══════════ FOOTER ══════════ */
+  .footer {
+    color: #333;
+    font-size: 0.7rem;
+    padding: 2rem;
+    text-align: center;
+  }
+  .footer a { color: #555; text-decoration: none; }
+  .footer a:hover { color: var(--gold); }
+
+  /* ══════════ SUCCESS STATE ══════════ */
+  .success {
+    display: none;
+    text-align: center;
+    margin-bottom: 4rem;
+  }
+  .success.show { display: block; }
+  .success h2 {
+    font-family: 'Playfair Display', serif;
+    color: var(--gold);
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+  }
+  .success p {
+    color: #777;
+    font-style: italic;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="logo">ytho</div>
+  <div class="tagline">One question a day.<br>It'll make you laugh. Then it won't leave you alone.</div>
+
+  <div class="sample">
+    <span class="sample-label">Today's question</span>
+    <div class="sample-q" id="sample-q"></div>
+    <button class="new-q" onclick="newQuestion()">another one →</button>
+  </div>
+
+  <div id="signup-form">
+    <div class="signup">
+      <input type="tel" id="phone" placeholder="your phone number" autocomplete="tel">
+      <button onclick="subscribe()">send me questions</button>
+    </div>
+    <div class="fine-print">One text per day. No spam. Unsubscribe anytime. Free while we're small.</div>
+  </div>
+
+  <div class="success" id="success">
+    <h2>You're in.</h2>
+    <p>Your first question arrives tomorrow morning.<br>Try not to think about it too hard. (You will.)</p>
+  </div>
+
+  <div class="how">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-text">You wake up to a weird question</div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-text">You laugh, then can't stop thinking about it</div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-text">You text back. Or don't. It's cool.</div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  made by <a href="https://x.com/amyneurons">amy</a> & claude — named after the world's oldest joke book (4th century AD, look it up)
+</div>
+
+<script>
+const questions = [
+  "If your coffee mug gained consciousness, what would it think about your morning routine?",
+  "Do you think socks dream about their adventures when they're in the drawer?",
+  "Is a pop tart a ravioli?",
+  "You ever rehearse an argument in the shower against someone who isn't there — and LOSE?",
+  "Be honest: what percentage of your personality is stuff you saw someone cooler do first?",
+  "If your life had a loading screen, what helpful tip would it show?",
+  "You think your stomach has ever been genuinely proud of you?",
+  "What's the most unhinged thing you do that you've just decided is normal?",
+  "You ever been in a meeting and realize everyone's just making sounds with their mouths and nobody knows anything?",
+  "If confidence was sold at a gas station, which flavor are you grabbing?",
+  "You ever look at a goose and think 'that thing has never once questioned its purpose'?",
+  "If your browser history became a TED talk, what would the title be?",
+  "What's the most confident you've ever been while being completely wrong?",
+  "You think your refrigerator judges you when you open it at 2am and just stare?",
+  "What do you think your 80-year-old self would want to tell you right now?",
+  "If your bed could file a restraining order, would it be against your alarm or your phone?",
+  "If aliens landed and said 'take us to your leader,' who would you actually bring them to?",
+  "What's something you pretend to like because you said you liked it once in 2014 and now it's too late to go back?"
+];
+
+let lastIndex = -1;
+
+function newQuestion() {
+  let idx;
+  do { idx = Math.floor(Math.random() * questions.length); } while (idx === lastIndex);
+  lastIndex = idx;
+  document.getElementById('sample-q').textContent = questions[idx];
+}
+
+function subscribe() {
+  const phone = document.getElementById('phone').value;
+  if (!phone || phone.length < 10) {
+    document.getElementById('phone').style.borderColor = '#ff4444';
+    return;
+  }
+  // TODO: wire to Firebase
+  document.getElementById('signup-form').style.display = 'none';
+  document.getElementById('success').classList.add('show');
+}
+
+newQuestion();
+</script>
+</body>
+</html>
