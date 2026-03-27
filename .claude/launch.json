@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ytho",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["http-server", ".", "-p", "3458", "-c-1"],
+      "port": 3458
+    }
+  ]
+}
