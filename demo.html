@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>y tho — demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: #080810;
+      color: #e0e4ec;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header */
+    .header {
+      background: #0c0c1a;
+      border-bottom: 1px solid #1a2a3a;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #2dd4a8, #7c3aed);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .header-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #e8eaf0;
+    }
+
+    .header-sub {
+      font-size: 11px;
+      color: #5a8a8a;
+      margin-top: 1px;
+    }
+
+    /* Account switcher */
+    .account-switcher {
+      display: flex;
+      gap: 6px;
+    }
+
+    .account-btn {
+      background: #0e1520;
+      border: 1px solid #1a2a3a;
+      color: #7a9a9a;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .account-btn:hover {
+      background: #141e2a;
+      color: #a0d0d0;
+    }
+
+    .account-btn.active {
+      background: linear-gradient(135deg, #2563eb, #7c3aed);
+      border-color: transparent;
+      color: white;
+    }
+
+    /* Day indicator */
+    .day-indicator {
+      text-align: center;
+      padding: 16px 20px 8px;
+      flex-shrink: 0;
+    }
+
+    .day-pill {
+      display: inline-block;
+      background: #0e1520;
+      border: 1px solid #d4a844;
+      color: #d4a844;
+      padding: 4px 14px;
+      border-radius: 12px;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    /* Messages area */
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .messages::-webkit-scrollbar { width: 6px; }
+    .messages::-webkit-scrollbar-track { background: transparent; }
+    .messages::-webkit-scrollbar-thumb { background: #1a2a3a; border-radius: 3px; }
+
+    .message {
+      max-width: 80%;
+      padding: 12px 16px;
+      border-radius: 18px;
+      font-size: 15px;
+      line-height: 1.5;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.incoming {
+      align-self: flex-start;
+      background: #101824;
+      border-bottom-left-radius: 6px;
+      border: 1px solid #1a2a3a;
+      color: #e0e4ec;
+    }
+
+    .message.outgoing {
+      align-self: flex-end;
+      background: linear-gradient(135deg, #2563eb, #1e88a8);
+      border-bottom-right-radius: 6px;
+      color: white;
+    }
+
+    .message.incoming .sender {
+      font-size: 11px;
+      color: #2dd4a8;
+      font-weight: 600;
+      margin-bottom: 4px;
+      letter-spacing: 0.3px;
+    }
+
+    .message.typing {
+      align-self: flex-start;
+      background: #101824;
+      border-bottom-left-radius: 6px;
+      border: 1px solid #1a2a3a;
+      color: #5a8a8a;
+      font-style: italic;
+    }
+
+    .typing-dots::after {
+      content: '';
+      animation: dots 1.5s infinite;
+    }
+
+    @keyframes dots {
+      0%, 20% { content: '.'; }
+      40% { content: '..'; }
+      60%, 100% { content: '...'; }
+    }
+
+    /* Input area */
+    .input-area {
+      background: #0c0c1a;
+      border-top: 1px solid #1a2a3a;
+      padding: 12px 20px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      flex-shrink: 0;
+    }
+
+    .input-area textarea {
+      flex: 1;
+      background: #0e1520;
+      border: 1px solid #1a2a3a;
+      color: #e0e4ec;
+      padding: 10px 16px;
+      border-radius: 22px;
+      font-size: 15px;
+      font-family: inherit;
+      resize: none;
+      outline: none;
+      max-height: 120px;
+      line-height: 1.4;
+      transition: border-color 0.2s;
+    }
+
+    .input-area textarea:focus {
+      border-color: #2dd4a8;
+    }
+
+    .input-area textarea::placeholder {
+      color: #3a5a5a;
+    }
+
+    .send-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #2563eb, #7c3aed);
+      border: none;
+      color: white;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .send-btn:hover { background: linear-gradient(135deg, #3b7cf7, #9b5aff); transform: scale(1.05); }
+    .send-btn:disabled { background: #1a2a3a; cursor: default; transform: none; }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      color: #3a5a5a;
+      padding: 60px 20px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .account-switcher { gap: 4px; }
+      .account-btn { padding: 5px 9px; font-size: 11px; }
+      .message { max-width: 88%; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="header-left">
+      <div class="avatar">P</div>
+      <div>
+        <div class="header-title">Philogelos</div>
+        <div class="header-sub">the funny philosopher</div>
+      </div>
+    </div>
+    <div class="account-switcher">
+      <button class="account-btn active" onclick="switchUser('alex')">Alex</button>
+      <button class="account-btn" onclick="switchUser('jordan')">Jordan</button>
+      <button class="account-btn" onclick="switchUser('sam')">Sam</button>
+      <button class="account-btn" onclick="switchUser('casey')">Casey</button>
+    </div>
+  </div>
+
+  <div class="day-indicator">
+    <span class="day-pill" id="dayPill">Day 1</span>
+  </div>
+
+  <div class="messages" id="messages"></div>
+
+  <div class="input-area">
+    <textarea id="input" rows="1" placeholder="Reply to Philogelos..."
+      oninput="autoResize(this)" onkeydown="handleKey(event)"></textarea>
+    <button class="send-btn" id="sendBtn" onclick="sendMessage()" disabled>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </button>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyBBhgSJUjgNBiLvkgmW5r6kmu3l9F3Fhu8",
+      authDomain: "ytho-4bff2.firebaseapp.com",
+      projectId: "ytho-4bff2",
+      storageBucket: "ytho-4bff2.firebasestorage.app",
+      messagingSenderId: "278344622989",
+      appId: "1:278344622989:web:0c86eb73f80d5d6c5353c4",
+      measurementId: "G-7K12KHTS4J"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // Questions from the 30-day arc
+    const questions = [
+      "If your coffee mug gained consciousness, what would it think about your morning routine?",
+      "Do you think socks dream about their adventures when they're in the drawer?",
+      "If trees had social media, what would their posts look like?",
+      "Is a pop tart a ravioli?",
+      "You ever notice how you rehearse an argument in the shower for 20 minutes against someone who isn't there \u2014 and LOSE?",
+      "Be honest: what percentage of your personality is just stuff you saw someone cooler do first?",
+      "If your life had a loading screen, what helpful tip would it show?",
+      "You think your stomach has ever been genuinely proud of you?",
+      "What's the most unhinged thing you do that you've just decided is normal?",
+      "If your intrusive thoughts had a batting average, what are we looking at?",
+      "You ever been in a meeting and realize everyone's just making sounds with their mouths and nobody knows anything?",
+      "What's something you pretend to like because you said you liked it once in 2014 and now it's too late to go back?",
+      "If confidence was sold at a gas station, which flavor are you grabbing?",
+      "You ever look at a goose and think 'that thing has never once questioned its purpose'?",
+      "What would your eulogy sound like if your group chat wrote it?",
+      "If procrastination was a sport, what would your walkout song be?",
+      "You think your WiFi router knows how much you depend on it? That's a lot of power for a little box.",
+      "What's a decision you made drunk that turned out to be philosophically correct?",
+      "If your life had a theme song that played every time you walked into a room, what would it be?",
+      "What's something you used to be absolutely sure about but aren't anymore?",
+      "If you had to describe yourself using only three questions (not answers), what would they be?",
+      "What do you think your 80-year-old self would want to tell you right now?",
+      "What's something you're afraid of that has nothing to do with physical danger?",
+      "If your life so far was a book, what would this chapter be called?",
+      "If your bed could file a restraining order, would it be against your alarm or your phone?",
+      "You ever think about how your dog has absolutely no idea what country he lives in?",
+      "If your browser history became a TED talk, what would the title be?",
+      "What's the most confident you've ever been while being completely wrong?",
+      "If aliens landed and said 'take us to your leader,' who would you actually bring them to?",
+      "You think your refrigerator judges you when you open it at 2am and just stare?",
+      "What question do you want to wake up to tomorrow?"
+    ];
+
+    // State
+    let currentUser = 'alex';
+    let sending = false;
+
+    // Cloud Function URL (set after deploy)
+    const FUNCTION_URL = 'https://us-central1-ytho-4bff2.cloudfunctions.net/chat';
+
+    // --- UI Helpers ---
+
+    function autoResize(el) {
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+      document.getElementById('sendBtn').disabled = !el.value.trim();
+    }
+
+    function handleKey(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    }
+
+    function scrollToBottom() {
+      const msgs = document.getElementById('messages');
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    function addBubble(text, type, sender) {
+      const msgs = document.getElementById('messages');
+      const div = document.createElement('div');
+      div.className = `message ${type}`;
+      if (type === 'incoming' && sender) {
+        div.innerHTML = `<div class="sender">${sender}</div>${escapeHtml(text)}`;
+      } else {
+        div.textContent = text;
+      }
+      msgs.appendChild(div);
+      scrollToBottom();
+      return div;
+    }
+
+    function showTyping() {
+      const msgs = document.getElementById('messages');
+      const div = document.createElement('div');
+      div.className = 'message typing';
+      div.id = 'typing';
+      div.innerHTML = '<div class="sender">Philogelos</div><span class="typing-dots">thinking</span>';
+      msgs.appendChild(div);
+      scrollToBottom();
+    }
+
+    function hideTyping() {
+      const el = document.getElementById('typing');
+      if (el) el.remove();
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // --- Account Switching ---
+
+    function switchUser(userId) {
+      currentUser = userId;
+      document.querySelectorAll('.account-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.toLowerCase() === userId);
+      });
+      loadConversation();
+    }
+
+    // --- Firebase ---
+
+    async function getUserDoc() {
+      const ref = db.collection('users').doc(currentUser);
+      const snap = await ref.get();
+      if (!snap.exists) {
+        await ref.set({ name: currentUser, currentDay: 1, createdAt: new Date() });
+        return { name: currentUser, currentDay: 1 };
+      }
+      return snap.data();
+    }
+
+    async function getMessages() {
+      const snap = await db.collection('conversations').doc(currentUser)
+        .collection('messages').orderBy('timestamp', 'asc').get();
+      return snap.docs.map(d => d.data());
+    }
+
+    async function saveMessage(role, text, questionDay) {
+      await db.collection('conversations').doc(currentUser)
+        .collection('messages').add({
+          role,
+          text,
+          questionDay,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    }
+
+    async function advanceDay() {
+      const user = await getUserDoc();
+      const nextDay = Math.min(user.currentDay + 1, questions.length);
+      await db.collection('users').doc(currentUser).update({ currentDay: nextDay });
+    }
+
+    // --- Load Conversation ---
+
+    async function loadConversation() {
+      const msgs = document.getElementById('messages');
+      msgs.innerHTML = '';
+
+      try {
+        const user = await getUserDoc();
+        const messages = await getMessages();
+        const day = user.currentDay;
+
+        document.getElementById('dayPill').textContent = `Day ${day}`;
+
+        // Show history
+        for (const msg of messages) {
+          if (msg.role === 'philogelos') {
+            addBubble(msg.text, 'incoming', 'Philogelos');
+          } else {
+            addBubble(msg.text, 'outgoing');
+          }
+        }
+
+        // If no messages for current day's question yet, show it
+        const dayMessages = messages.filter(m => m.questionDay === day);
+        if (dayMessages.length === 0 && day <= questions.length) {
+          const q = questions[day - 1];
+          addBubble(q, 'incoming', 'Philogelos');
+          await saveMessage('philogelos', q, day);
+        }
+      } catch (err) {
+        console.error('Load error:', err);
+        msgs.innerHTML = '<div class="empty-state">Could not connect to Firebase.<br>Check console for details.</div>';
+      }
+    }
+
+    // --- Send Message ---
+
+    async function sendMessage() {
+      const input = document.getElementById('input');
+      const text = input.value.trim();
+      if (!text || sending) return;
+
+      sending = true;
+      input.value = '';
+      autoResize(input);
+
+      const user = await getUserDoc();
+      const day = user.currentDay;
+
+      // Show user message
+      addBubble(text, 'outgoing');
+      await saveMessage('user', text, day);
+
+      // Call Cloud Function for AI response
+      if (FUNCTION_URL) {
+        showTyping();
+        try {
+          const history = await getMessages();
+          const res = await fetch(FUNCTION_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: currentUser,
+              userMessage: text,
+              questionDay: day,
+              question: questions[day - 1],
+              history: history.slice(-10) // last 10 messages for context
+            })
+          });
+          const data = await res.json();
+          hideTyping();
+
+          if (data.reply) {
+            addBubble(data.reply, 'incoming', 'Philogelos');
+            await saveMessage('philogelos', data.reply, day);
+          }
+
+          // Advance to next day after responding
+          await advanceDay();
+
+        } catch (err) {
+          hideTyping();
+          console.error('Agent error:', err);
+          addBubble("Hmm, my philosopher brain glitched. Try again?", 'incoming', 'Philogelos');
+        }
+      } else {
+        // No function URL yet — mock response
+        showTyping();
+        setTimeout(async () => {
+          hideTyping();
+          const mockReplies = [
+            "Ha! I love that. You know what's wild? Most people never even think about it that way.",
+            "See, THAT'S the kind of answer that makes me think you've been secretly philosophizing in the shower.",
+            "Beautiful. I'm filing that away. Tomorrow's question is gonna hit different after this.",
+            "You just said something a 17th century philosopher spent 400 pages trying to say. Respect.",
+            "I wasn't expecting that answer but honestly? I should have been."
+          ];
+          const reply = mockReplies[Math.floor(Math.random() * mockReplies.length)];
+          addBubble(reply, 'incoming', 'Philogelos');
+          await saveMessage('philogelos', reply, day);
+          await advanceDay();
+        }, 1500);
+      }
+
+      sending = false;
+    }
+
+    // --- Init ---
+    loadConversation();
+  </script>
+</body>
+</html>
