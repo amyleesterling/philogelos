@@ -32,7 +32,7 @@ THE ARC:
 - Week 3: The real stuff. Fear, ethics, mortality. They're ready because you earned trust.
 - Week 4: Integration. The portrait emerges. They see who they are.`;
 
-exports.chat = onRequest({ secrets: [anthropicKey], cors: true }, async (req, res) => {
+exports.chat = onRequest({ secrets: [anthropicKey], cors: true, invoker: "public" }, async (req, res) => {
   cors(req, res, async () => {
     if (req.method !== "POST") {
       res.status(405).json({ error: "POST only" });
