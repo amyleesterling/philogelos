@@ -1,7 +1,5 @@
 const { onRequest } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
-const Anthropic = require("@anthropic-ai/sdk");
-const cors = require("cors")({ origin: true });
 
 const anthropicKey = defineSecret("ANTHROPIC_API_KEY");
 
@@ -33,54 +31,72 @@ THE ARC:
 - Week 4: Integration. The portrait emerges. They see who they are.`;
 
 exports.chat = onRequest({ secrets: [anthropicKey], cors: true, invoker: "public" }, async (req, res) => {
-  cors(req, res, async () => {
-    if (req.method !== "POST") {
-      res.status(405).json({ error: "POST only" });
-      return;
-    }
+  if (req.method === "OPTIONS") {
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Access-Control-Allow-Methods", "POST");
+    res.set("Access-Control-Allow-Headers", "Content-Type");
+    res.status(204).send("");
+    return;
+  }
 
-    const { userMessage, question, history } = req.body;
+  res.set("Access-Control-Allow-Origin", "*");
 
-    if (!userMessage || !question) {
-      res.status(400).json({ error: "Missing userMessage or question" });
-      return;
-    }
+  if (req.method !== "POST") {
+    res.status(405).json({ error: "POST only" });
+    return;
+  }
 
-    try {
-      const client = new Anthropic({ apiKey: anthropicKey.value() });
+  const { userMessage, question, history } = req.body;
 
-      // Build conversation context
-      const messages = [];
+  if (!userMessage || !question) {
+    res.status(400).json({ error: "Missing userMessage or question" });
+    return;
+  }
 
-      // Add recent history for context
-      if (history && history.length > 0) {
-        for (const msg of history.slice(-8)) {
-          if (msg.role === "philogelos") {
-            messages.push({ role: "assistant", content: msg.text });
-          } else if (msg.role === "user") {
-            messages.push({ role: "user", content: msg.text });
-          }
+  try {
+    const apiKey = anthropicKey.value();
+
+    // Build conversation context
+    const messages = [];
+    if (history && history.length > 0) {
+      for (const msg of history.slice(-8)) {
+        if (msg.role === "philogelos") {
+          messages.push({ role: "assistant", content: msg.text });
+        } else if (msg.role === "user") {
+          messages.push({ role: "user", content: msg.text });
         }
       }
+    }
+    if (messages.length === 0 || messages[messages.length - 1].role !== "user") {
+      messages.push({ role: "user", content: userMessage });
+    }
 
-      // Ensure the last message is the current user reply
-      if (messages.length === 0 || messages[messages.length - 1].role !== "user") {
-        messages.push({ role: "user", content: userMessage });
-      }
-
-      const response = await client.messages.create({
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01"
+      },
+      body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
         max_tokens: 200,
         system: `${SYSTEM_PROMPT}\n\nThe question you just asked them was: "${question}"`,
         messages
-      });
+      })
+    });
 
-      const reply = response.content[0].text;
-      res.json({ reply });
+    const data = await response.json();
 
-    } catch (err) {
-      console.error("Anthropic API error:", err);
-      res.status(500).json({ error: "AI temporarily unavailable" });
+    if (data.content && data.content[0]) {
+      res.json({ reply: data.content[0].text });
+    } else {
+      console.error("Unexpected response:", JSON.stringify(data));
+      res.status(500).json({ error: "Unexpected API response" });
     }
-  });
+
+  } catch (err) {
+    console.error("API error:", err);
+    res.status(500).json({ error: "AI temporarily unavailable" });
+  }
 });
