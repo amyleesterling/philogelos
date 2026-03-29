@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Somerville vs Ipswich MA — 20-Year Temperature Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: #0f1117;
+    color: #e0e0e8;
+    min-height: 100vh;
+    padding: 1.5rem;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+    background: linear-gradient(135deg, #60a5fa, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .subtitle {
+    text-align: center;
+    color: #888;
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .controls {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+  }
+
+  .controls select, .controls button {
+    background: #1a1d2e;
+    color: #e0e0e8;
+    border: 1px solid #2a2d3e;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .controls button:hover { background: #252840; }
+  .controls button.active { background: #3b3f5c; border-color: #60a5fa; }
+
+  .dashboard {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+  }
+
+  .card {
+    background: #1a1d2e;
+    border-radius: 12px;
+    padding: 1.25rem;
+    border: 1px solid #2a2d3e;
+  }
+
+  .card.full-width {
+    grid-column: 1 / -1;
+  }
+
+  .card h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: #c0c0d0;
+  }
+
+  .chart-container {
+    position: relative;
+    height: 320px;
+  }
+
+  .chart-container.tall {
+    height: 400px;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+  }
+
+  .stat-box {
+    background: #12141f;
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+  }
+
+  .stat-box .label {
+    font-size: 0.75rem;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.3rem;
+  }
+
+  .stat-box .value {
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+
+  .stat-box .detail {
+    font-size: 0.75rem;
+    color: #666;
+    margin-top: 0.2rem;
+  }
+
+  .somerville { color: #60a5fa; }
+  .ipswich { color: #f59e0b; }
+  .diff-pos { color: #34d399; }
+  .diff-neg { color: #f87171; }
+
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 17, 23, 0.95);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+
+  .spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid #2a2d3e;
+    border-top-color: #60a5fa;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text {
+    margin-top: 1rem;
+    color: #888;
+    font-size: 0.9rem;
+  }
+
+  .progress-bar {
+    width: 300px;
+    height: 6px;
+    background: #2a2d3e;
+    border-radius: 3px;
+    margin-top: 0.75rem;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #60a5fa, #a78bfa);
+    border-radius: 3px;
+    transition: width 0.3s;
+    width: 0%;
+  }
+
+  .legend-row {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+    font-size: 0.8rem;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  @media (max-width: 900px) {
+    .dashboard { grid-template-columns: 1fr; }
+    .chart-container { height: 260px; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Somerville vs Ipswich, MA</h1>
+<p class="subtitle">20-Year Historical Temperature Comparison (2006 - 2025)</p>
+
+<div class="legend-row">
+  <div class="legend-item"><div class="legend-dot" style="background:#60a5fa"></div> Somerville</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div> Ipswich</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#34d399"></div> Difference</div>
+</div>
+
+<div class="controls">
+  <select id="viewMode">
+    <option value="monthly">Monthly Averages</option>
+    <option value="yearly">Yearly Averages</option>
+    <option value="seasonal">Seasonal Comparison</option>
+  </select>
+  <select id="yearRange">
+    <option value="all">All Years (2006-2025)</option>
+    <option value="recent5">Recent 5 Years</option>
+    <option value="recent10">Recent 10 Years</option>
+    <option value="first10">First 10 Years (2006-2015)</option>
+  </select>
+  <button id="unitToggle" class="active" onclick="toggleUnits()">°F</button>
+</div>
+
+<div class="dashboard">
+  <!-- Summary Stats -->
+  <div class="card full-width">
+    <h2>Key Statistics</h2>
+    <div class="stats-grid" id="statsGrid"></div>
+  </div>
+
+  <!-- Feels Like Temperature Difference -->
+  <div class="card full-width">
+    <h2>Feels-Like (Apparent) Temperature Difference: Somerville minus Ipswich</h2>
+    <div class="chart-container tall"><canvas id="feelsLikeDiffChart"></canvas></div>
+  </div>
+
+  <!-- Actual Temperature -->
+  <div class="card">
+    <h2>Actual Temperature (Daily Mean)</h2>
+    <div class="chart-container"><canvas id="actualTempChart"></canvas></div>
+  </div>
+
+  <!-- Feels Like Temperature -->
+  <div class="card">
+    <h2>Feels-Like Temperature (Daily Mean)</h2>
+    <div class="chart-container"><canvas id="feelsLikeChart"></canvas></div>
+  </div>
+
+  <!-- Wind Speed -->
+  <div class="card">
+    <h2>Max Wind Speed</h2>
+    <div class="chart-container"><canvas id="windChart"></canvas></div>
+  </div>
+
+  <!-- Cloud Cover -->
+  <div class="card">
+    <h2>Cloud Cover (% of sky)</h2>
+    <div class="chart-container"><canvas id="cloudChart"></canvas></div>
+  </div>
+
+  <!-- Sunshine Duration -->
+  <div class="card full-width">
+    <h2>Sunshine Duration (hours/day)</h2>
+    <div class="chart-container"><canvas id="sunshineChart"></canvas></div>
+  </div>
+
+  <!-- Monthly Heatmap of Feels-Like Diff -->
+  <div class="card full-width">
+    <h2>Average Feels-Like Difference by Month &amp; Year (Somerville minus Ipswich)</h2>
+    <div class="chart-container tall"><canvas id="heatmapChart"></canvas></div>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">Fetching 20 years of weather data...</div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+</div>
+
+<script>
+const LOCATIONS = {
+  somerville: { name: 'Somerville', lat: 42.3876, lon: -71.0995 },
+  ipswich:    { name: 'Ipswich',    lat: 42.6792, lon: -70.8412 }
+};
+
+const START_YEAR = 2006;
+const END_YEAR = 2025;
+let useFahrenheit = true;
+let rawData = {};
+let charts = {};
+
+// --- Data Fetching ---
+
+async function fetchWeatherData(location, startDate, endDate) {
+  const params = new URLSearchParams({
+    latitude: location.lat,
+    longitude: location.lon,
+    start_date: startDate,
+    end_date: endDate,
+    daily: [
+      'temperature_2m_max', 'temperature_2m_min', 'temperature_2m_mean',
+      'apparent_temperature_max', 'apparent_temperature_min', 'apparent_temperature_mean',
+      'windspeed_10m_max', 'sunshine_duration'
+    ].join(','),
+    hourly: 'cloud_cover',
+    temperature_unit: 'fahrenheit',
+    wind_speed_unit: 'mph',
+    timezone: 'America/New_York'
+  });
+  const url = `https://archive-api.open-meteo.com/v1/archive?${params}`;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`API error: ${resp.status} for ${location.name} (${startDate} to ${endDate})`);
+  return resp.json();
+}
+
+// Fetch in 5-year chunks to avoid API limits
+async function fetchAllData() {
+  const overlay = document.getElementById('loadingOverlay');
+  const progressFill = document.getElementById('progressFill');
+  const loadingText = document.getElementById('loadingText');
+
+  const chunks = [];
+  for (let y = START_YEAR; y <= END_YEAR; y += 5) {
+    const endY = Math.min(y + 4, END_YEAR);
+    chunks.push({ start: `${y}-01-01`, end: `${endY}-12-31` });
+  }
+
+  const totalRequests = chunks.length * 2;
+  let completed = 0;
+
+  const somervilleData = { dates: [], daily: {} };
+  const ipswichData = { dates: [], daily: {} };
+
+  for (const chunk of chunks) {
+    loadingText.textContent = `Fetching ${chunk.start.slice(0,4)}-${chunk.end.slice(0,4)}...`;
+
+    const [sRes, iRes] = await Promise.all([
+      fetchWeatherData(LOCATIONS.somerville, chunk.start, chunk.end),
+      fetchWeatherData(LOCATIONS.ipswich, chunk.start, chunk.end)
+    ]);
+
+    completed += 2;
+    progressFill.style.width = `${(completed / totalRequests) * 100}%`;
+
+    // Merge daily data
+    mergeDaily(somervilleData, sRes);
+    mergeDaily(ipswichData, iRes);
+
+    // Compute daily cloud cover average from hourly
+    mergeDailyCloudCover(somervilleData, sRes);
+    mergeDailyCloudCover(ipswichData, iRes);
+  }
+
+  rawData = { somerville: somervilleData, ipswich: ipswichData };
+  overlay.style.display = 'none';
+}
+
+function mergeDaily(target, apiResult) {
+  const d = apiResult.daily;
+  if (!d) return;
+  target.dates.push(...d.time);
+  for (const key of Object.keys(d)) {
+    if (key === 'time') continue;
+    if (!target.daily[key]) target.daily[key] = [];
+    target.daily[key].push(...d[key]);
+  }
+}
+
+function mergeDailyCloudCover(target, apiResult) {
+  const h = apiResult.hourly;
+  if (!h || !h.cloud_cover) return;
+  if (!target.daily.cloud_cover_mean) target.daily.cloud_cover_mean = [];
+
+  // Average hourly cloud cover per day (24 readings per day)
+  const cc = h.cloud_cover;
+  for (let i = 0; i < cc.length; i += 24) {
+    const dayVals = cc.slice(i, i + 24).filter(v => v !== null);
+    const avg = dayVals.length > 0 ? dayVals.reduce((a, b) => a + b, 0) / dayVals.length : null;
+    target.daily.cloud_cover_mean.push(avg);
+  }
+}
+
+// --- Data Processing ---
+
+function cToF(c) { return c * 9 / 5 + 32; }
+function fToC(f) { return (f - 5 / 9) * (f - 32); }
+function tempVal(v) {
+  if (v === null) return null;
+  return useFahrenheit ? v : (v - 32) * 5 / 9;
+}
+function windVal(v) { return v; } // always mph
+function tempUnit() { return useFahrenheit ? '°F' : '°C'; }
+
+function getFilteredIndices() {
+  const range = document.getElementById('yearRange').value;
+  const dates = rawData.somerville.dates;
+  return dates.map((d, i) => {
+    const year = parseInt(d.slice(0, 4));
+    switch (range) {
+      case 'recent5': return year >= END_YEAR - 4 ? i : -1;
+      case 'recent10': return year >= END_YEAR - 9 ? i : -1;
+      case 'first10': return year <= START_YEAR + 9 ? i : -1;
+      default: return i;
+    }
+  }).filter(i => i >= 0);
+}
+
+function aggregateByMonth(indices, key, loc) {
+  const data = rawData[loc].daily[key];
+  const dates = rawData[loc].dates;
+  const buckets = {};
+
+  for (const i of indices) {
+    const month = dates[i].slice(0, 7); // YYYY-MM
+    if (!buckets[month]) buckets[month] = [];
+    if (data[i] !== null) buckets[month].push(data[i]);
+  }
+
+  const labels = Object.keys(buckets).sort();
+  const values = labels.map(m => {
+    const vals = buckets[m];
+    return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  });
+  return { labels, values };
+}
+
+function aggregateByYear(indices, key, loc) {
+  const data = rawData[loc].daily[key];
+  const dates = rawData[loc].dates;
+  const buckets = {};
+
+  for (const i of indices) {
+    const year = dates[i].slice(0, 4);
+    if (!buckets[year]) buckets[year] = [];
+    if (data[i] !== null) buckets[year].push(data[i]);
+  }
+
+  const labels = Object.keys(buckets).sort();
+  const values = labels.map(y => {
+    const vals = buckets[y];
+    return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  });
+  return { labels, values };
+}
+
+function aggregateBySeason(indices, key, loc) {
+  const data = rawData[loc].daily[key];
+  const dates = rawData[loc].dates;
+  const buckets = { 'Winter': [], 'Spring': [], 'Summer': [], 'Fall': [] };
+
+  for (const i of indices) {
+    const month = parseInt(dates[i].slice(5, 7));
+    let season;
+    if (month <= 2 || month === 12) season = 'Winter';
+    else if (month <= 5) season = 'Spring';
+    else if (month <= 8) season = 'Summer';
+    else season = 'Fall';
+    if (data[i] !== null) buckets[season].push(data[i]);
+  }
+
+  const labels = ['Winter', 'Spring', 'Summer', 'Fall'];
+  const values = labels.map(s => {
+    const vals = buckets[s];
+    return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  });
+  return { labels, values };
+}
+
+function getAggregator() {
+  const mode = document.getElementById('viewMode').value;
+  switch (mode) {
+    case 'yearly': return aggregateByYear;
+    case 'seasonal': return aggregateBySeason;
+    default: return aggregateByMonth;
+  }
+}
+
+function isTimeAxis() {
+  return document.getElementById('viewMode').value !== 'seasonal';
+}
+
+// --- Chart Rendering ---
+
+const chartColors = {
+  somerville: '#60a5fa',
+  ipswich: '#f59e0b',
+  diffPos: '#34d399',
+  diffNeg: '#f87171',
+  wind: '#a78bfa',
+  cloud: '#94a3b8',
+  sun: '#fbbf24'
+};
+
+function makeTimeAxis() {
+  return isTimeAxis() ? {
+    type: 'time',
+    time: { unit: document.getElementById('viewMode').value === 'yearly' ? 'year' : 'month', tooltipFormat: document.getElementById('viewMode').value === 'yearly' ? 'yyyy' : 'MMM yyyy' },
+    ticks: { color: '#666', maxTicksLimit: 20 },
+    grid: { color: '#1e2030' }
+  } : {
+    type: 'category',
+    ticks: { color: '#666' },
+    grid: { color: '#1e2030' }
+  };
+}
+
+function makeYAxis(label) {
+  return {
+    ticks: { color: '#666' },
+    grid: { color: '#1e2030' },
+    title: { display: true, text: label, color: '#888' }
+  };
+}
+
+function chartOpts(yLabel, extraOpts = {}) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { labels: { color: '#aaa', usePointStyle: true, pointStyle: 'circle' } },
+      tooltip: { backgroundColor: '#1a1d2e', titleColor: '#e0e0e8', bodyColor: '#ccc', borderColor: '#2a2d3e', borderWidth: 1 }
+    },
+    scales: {
+      x: makeTimeAxis(),
+      y: makeYAxis(yLabel)
+    },
+    ...extraOpts
+  };
+}
+
+function destroyCharts() {
+  for (const c of Object.values(charts)) c.destroy();
+  charts = {};
+}
+
+function parseLabels(labels) {
+  if (isTimeAxis()) return labels.map(l => new Date(l + (l.length === 4 ? '-07-01' : '-15')));
+  return labels;
+}
+
+function renderFeelsLikeDiffChart() {
+  const agg = getAggregator();
+  const indices = getFilteredIndices();
+  const sData = agg(indices, 'apparent_temperature_mean', 'somerville');
+  const iData = agg(indices, 'apparent_temperature_mean', 'ipswich');
+
+  const labels = parseLabels(sData.labels);
+  const diffs = sData.values.map((v, j) => {
+    if (v === null || iData.values[j] === null) return null;
+    return tempVal(v) - tempVal(iData.values[j]);
+  });
+
+  const bgColors = diffs.map(d => d === null ? 'transparent' : d >= 0 ? 'rgba(52,211,153,0.6)' : 'rgba(248,113,113,0.6)');
+  const borderColors = diffs.map(d => d === null ? 'transparent' : d >= 0 ? chartColors.diffPos : chartColors.diffNeg);
+
+  charts.feelsLikeDiff = new Chart(document.getElementById('feelsLikeDiffChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: `Feels-Like Diff (${tempUnit()})`,
+        data: diffs,
+        backgroundColor: bgColors,
+        borderColor: borderColors,
+        borderWidth: 1
+      }]
+    },
+    options: chartOpts(`Somerville minus Ipswich (${tempUnit()})`)
+  });
+}
+
+function renderDualLineChart(canvasId, key, label, transform = tempVal, unit = tempUnit) {
+  const agg = getAggregator();
+  const indices = getFilteredIndices();
+  const sData = agg(indices, key, 'somerville');
+  const iData = agg(indices, key, 'ipswich');
+  const labels = parseLabels(sData.labels);
+
+  charts[canvasId] = new Chart(document.getElementById(canvasId), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: `Somerville`,
+          data: sData.values.map(transform),
+          borderColor: chartColors.somerville,
+          backgroundColor: 'rgba(96,165,250,0.1)',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          fill: false,
+          tension: 0.3
+        },
+        {
+          label: `Ipswich`,
+          data: iData.values.map(transform),
+          borderColor: chartColors.ipswich,
+          backgroundColor: 'rgba(245,158,11,0.1)',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          fill: false,
+          tension: 0.3
+        }
+      ]
+    },
+    options: chartOpts(`${label} (${typeof unit === 'function' ? unit() : unit})`)
+  });
+}
+
+function renderWindChart() {
+  renderDualLineChart('windChart', 'windspeed_10m_max', 'Max Wind Speed', v => v, 'mph');
+}
+
+function renderCloudChart() {
+  renderDualLineChart('cloudChart', 'cloud_cover_mean', 'Cloud Cover', v => v, '%');
+}
+
+function renderSunshineChart() {
+  // Sunshine duration is in seconds from API, convert to hours
+  const transform = v => v !== null ? v / 3600 : null;
+  renderDualLineChart('sunshineChart', 'sunshine_duration', 'Sunshine Duration', transform, 'hrs/day');
+}
+
+function renderHeatmap() {
+  const indices = getFilteredIndices();
+  const sDates = rawData.somerville.dates;
+  const sAT = rawData.somerville.daily.apparent_temperature_mean;
+  const iAT = rawData.ipswich.daily.apparent_temperature_mean;
+
+  // Build year x month grid
+  const grid = {};
+  const years = new Set();
+  for (const i of indices) {
+    const year = sDates[i].slice(0, 4);
+    const month = parseInt(sDates[i].slice(5, 7));
+    years.add(year);
+    const key = `${year}-${month}`;
+    if (!grid[key]) grid[key] = [];
+    if (sAT[i] !== null && iAT[i] !== null) {
+      grid[key].push(tempVal(sAT[i]) - tempVal(iAT[i]));
+    }
+  }
+
+  const sortedYears = [...years].sort();
+  const months = Array.from({ length: 12 }, (_, i) => i + 1);
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  const dataPoints = [];
+  for (let yi = 0; yi < sortedYears.length; yi++) {
+    for (let mi = 0; mi < 12; mi++) {
+      const key = `${sortedYears[yi]}-${months[mi]}`;
+      const vals = grid[key];
+      if (vals && vals.length > 0) {
+        const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+        dataPoints.push({ x: monthNames[mi], y: sortedYears[yi], v: avg });
+      }
+    }
+  }
+
+  // Find max absolute value for color scaling
+  const maxAbs = Math.max(...dataPoints.map(d => Math.abs(d.v)), 1);
+
+  charts.heatmap = new Chart(document.getElementById('heatmapChart'), {
+    type: 'scatter',
+    data: {
+      datasets: [{
+        label: 'Feels-Like Diff',
+        data: dataPoints.map(d => ({
+          x: monthNames.indexOf(d.x),
+          y: sortedYears.indexOf(d.y),
+          v: d.v,
+          month: d.x,
+          year: d.y
+        })),
+        pointRadius: ctx => {
+          // Scale point size based on canvas
+          return Math.max(8, Math.min(18, 300 / sortedYears.length));
+        },
+        pointStyle: 'rect',
+        backgroundColor: ctx => {
+          const raw = ctx.raw;
+          if (!raw) return 'transparent';
+          const val = raw.v;
+          const intensity = Math.min(Math.abs(val) / maxAbs, 1);
+          if (val >= 0) return `rgba(52,211,153,${0.2 + intensity * 0.8})`;
+          return `rgba(248,113,113,${0.2 + intensity * 0.8})`;
+        }
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1d2e',
+          titleColor: '#e0e0e8',
+          bodyColor: '#ccc',
+          borderColor: '#2a2d3e',
+          borderWidth: 1,
+          callbacks: {
+            title: ctx => `${ctx[0].raw.month} ${ctx[0].raw.year}`,
+            label: ctx => `Diff: ${ctx.raw.v >= 0 ? '+' : ''}${ctx.raw.v.toFixed(1)}${tempUnit()}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: 'linear',
+          min: -0.5,
+          max: 11.5,
+          ticks: {
+            color: '#666',
+            callback: (val) => monthNames[val] || '',
+            stepSize: 1
+          },
+          grid: { display: false }
+        },
+        y: {
+          type: 'linear',
+          min: -0.5,
+          max: sortedYears.length - 0.5,
+          ticks: {
+            color: '#666',
+            callback: (val) => sortedYears[val] || '',
+            stepSize: 1
+          },
+          grid: { display: false },
+          reverse: false
+        }
+      }
+    }
+  });
+}
+
+function renderStats() {
+  const indices = getFilteredIndices();
+  const sAT = rawData.somerville.daily.apparent_temperature_mean;
+  const iAT = rawData.ipswich.daily.apparent_temperature_mean;
+  const sTM = rawData.somerville.daily.temperature_2m_mean;
+  const iTM = rawData.ipswich.daily.temperature_2m_mean;
+  const sWind = rawData.somerville.daily.windspeed_10m_max;
+  const iWind = rawData.ipswich.daily.windspeed_10m_max;
+  const sCC = rawData.somerville.daily.cloud_cover_mean;
+  const iCC = rawData.ipswich.daily.cloud_cover_mean;
+
+  let sATSum = 0, iATSum = 0, sTMSum = 0, iTMSum = 0;
+  let sWindSum = 0, iWindSum = 0, sCCSum = 0, iCCSum = 0;
+  let n = 0, nWind = 0, nCC = 0;
+  let maxDiff = -Infinity, maxDiffDate = '';
+  let minDiff = Infinity, minDiffDate = '';
+
+  for (const i of indices) {
+    if (sAT[i] !== null && iAT[i] !== null) {
+      const diff = tempVal(sAT[i]) - tempVal(iAT[i]);
+      sATSum += tempVal(sAT[i]);
+      iATSum += tempVal(iAT[i]);
+      sTMSum += tempVal(sTM[i]);
+      iTMSum += tempVal(iTM[i]);
+      n++;
+      if (diff > maxDiff) { maxDiff = diff; maxDiffDate = rawData.somerville.dates[i]; }
+      if (diff < minDiff) { minDiff = diff; minDiffDate = rawData.somerville.dates[i]; }
+    }
+    if (sWind[i] !== null && iWind[i] !== null) {
+      sWindSum += sWind[i]; iWindSum += iWind[i]; nWind++;
+    }
+    if (sCC[i] !== null && iCC[i] !== null) {
+      sCCSum += sCC[i]; iCCSum += iCC[i]; nCC++;
+    }
+  }
+
+  const avgFeelsDiff = n > 0 ? (sATSum - iATSum) / n : 0;
+  const avgActualDiff = n > 0 ? (sTMSum - iTMSum) / n : 0;
+  const avgWindDiffS = nWind > 0 ? sWindSum / nWind : 0;
+  const avgWindDiffI = nWind > 0 ? iWindSum / nWind : 0;
+  const avgCCS = nCC > 0 ? sCCSum / nCC : 0;
+  const avgCCI = nCC > 0 ? iCCSum / nCC : 0;
+
+  const stats = [
+    { label: 'Avg Feels-Like Diff', value: `${avgFeelsDiff >= 0 ? '+' : ''}${avgFeelsDiff.toFixed(1)}${tempUnit()}`, cls: avgFeelsDiff >= 0 ? 'diff-pos' : 'diff-neg', detail: 'Somerville minus Ipswich' },
+    { label: 'Avg Actual Temp Diff', value: `${avgActualDiff >= 0 ? '+' : ''}${avgActualDiff.toFixed(1)}${tempUnit()}`, cls: avgActualDiff >= 0 ? 'diff-pos' : 'diff-neg', detail: 'Somerville minus Ipswich' },
+    { label: 'Somerville Avg Temp', value: `${(sTMSum / n).toFixed(1)}${tempUnit()}`, cls: 'somerville', detail: `Feels like ${(sATSum / n).toFixed(1)}${tempUnit()}` },
+    { label: 'Ipswich Avg Temp', value: `${(iTMSum / n).toFixed(1)}${tempUnit()}`, cls: 'ipswich', detail: `Feels like ${(iATSum / n).toFixed(1)}${tempUnit()}` },
+    { label: 'Max Warmer Day (S)', value: `+${maxDiff.toFixed(1)}${tempUnit()}`, cls: 'diff-pos', detail: maxDiffDate },
+    { label: 'Max Colder Day (S)', value: `${minDiff.toFixed(1)}${tempUnit()}`, cls: 'diff-neg', detail: minDiffDate },
+    { label: 'Avg Max Wind', value: `S: ${avgWindDiffS.toFixed(1)} / I: ${avgWindDiffI.toFixed(1)}`, cls: '', detail: 'mph' },
+    { label: 'Avg Cloud Cover', value: `S: ${avgCCS.toFixed(0)}% / I: ${avgCCI.toFixed(0)}%`, cls: '', detail: 'Daily mean' }
+  ];
+
+  const grid = document.getElementById('statsGrid');
+  grid.innerHTML = stats.map(s => `
+    <div class="stat-box">
+      <div class="label">${s.label}</div>
+      <div class="value ${s.cls}">${s.value}</div>
+      <div class="detail">${s.detail}</div>
+    </div>
+  `).join('');
+}
+
+function renderAll() {
+  destroyCharts();
+  renderStats();
+  renderFeelsLikeDiffChart();
+  renderDualLineChart('actualTempChart', 'temperature_2m_mean', 'Temperature', tempVal, tempUnit);
+  renderDualLineChart('feelsLikeChart', 'apparent_temperature_mean', 'Feels-Like Temp', tempVal, tempUnit);
+  renderWindChart();
+  renderCloudChart();
+  renderSunshineChart();
+  renderHeatmap();
+}
+
+function toggleUnits() {
+  useFahrenheit = !useFahrenheit;
+  const btn = document.getElementById('unitToggle');
+  btn.textContent = useFahrenheit ? '°F' : '°C';
+  renderAll();
+}
+
+document.getElementById('viewMode').addEventListener('change', renderAll);
+document.getElementById('yearRange').addEventListener('change', renderAll);
+
+// --- Init ---
+fetchAllData().then(renderAll).catch(err => {
+  document.getElementById('loadingText').textContent = `Error: ${err.message}`;
+  document.getElementById('loadingText').style.color = '#f87171';
+  console.error(err);
+});
+</script>
+</body>
+</html>
