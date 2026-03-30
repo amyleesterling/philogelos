@@ -3,44 +3,41 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>y tho — a daily question you can't stop thinking about</title>
+<title>y tho? — unserious deity of philosophy</title>
 <meta name="description" content="One funny philosophical question per day, delivered by text. It'll make you laugh. Then it'll make you think. Then you'll wonder why a text message just changed your whole afternoon.">
 <meta name="author" content="Amy Sterling and Claude">
 <link rel="canonical" href="https://ytho.club/">
 
-<meta property="og:title" content="ytho.club">
+<meta property="og:title" content="y tho?">
 <meta property="og:description" content="One funny question per day. By text. You'll laugh first. Think later.">
 <meta property="og:url" content="https://ytho.club/">
 <meta property="og:type" content="website">
 
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="ytho.club">
+<meta name="twitter:title" content="y tho?">
 <meta name="twitter:description" content="A daily text that asks you a question you can't stop thinking about.">
 
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='12' fill='%23080810'/><text x='50' y='72' font-size='50' text-anchor='middle' fill='%23d4a844' font-family='serif'>?</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='12' fill='%23f5f2ed'/><text x='50' y='72' font-size='50' text-anchor='middle' fill='%23222' font-family='sans-serif' font-weight='900'>?</text></svg>">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Inter:wght@300;400&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;900&display=swap');
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   :root {
-    --blue: #2563eb;
-    --teal: #2dd4a8;
-    --purple: #7c3aed;
-    --gold-sparkle: #d4a844;
-    --deep: #080810;
-    --deep-alt: #0c0c1a;
-    --cream: #e8e4dd;
+    --stone: #f5f2ed;
+    --paper: #faf9f6;
+    --ink: #1a1a1a;
+    --ink-light: #555;
+    --ink-faint: #999;
+    --fold: #e8e4dd;
+    --warm: #c4a87a;
   }
 
   html { scroll-behavior: smooth; }
 
   body {
-    background: var(--deep);
-    background-image:
-      radial-gradient(ellipse at 20% 0%, rgba(37,99,235,0.06) 0%, transparent 60%),
-      radial-gradient(ellipse at 80% 100%, rgba(124,58,237,0.05) 0%, transparent 60%);
-    color: var(--cream);
+    background: var(--paper);
+    color: var(--ink);
     font-family: 'Inter', sans-serif;
     overflow-x: hidden;
     min-height: 100vh;
@@ -53,72 +50,64 @@
   /* ══════════ HERO ══════════ */
   .hero {
     text-align: center;
-    padding: 2rem;
-    max-width: 700px;
-    animation: fadeUp 1.5s ease;
+    padding: 3rem 2rem;
+    max-width: 680px;
+    animation: fadeUp 1.2s ease;
   }
 
-  .logo {
-    font-family: 'Inter', sans-serif;
-    font-size: clamp(3rem, 12vw, 8rem);
-    font-weight: 900;
-    background: linear-gradient(135deg, var(--teal) 0%, #2ba8e0 50%, var(--teal) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    letter-spacing: 0.15em;
-    filter: drop-shadow(0 0 40px rgba(45,212,168,0.15));
-    margin-bottom: 2rem;
+  .logo-img {
+    width: min(320px, 80vw);
+    margin-bottom: 0.5rem;
   }
 
-  .tagline {
-    display: none;
+  .subtitle {
+    font-size: 0.8rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 3rem;
+    font-weight: 300;
   }
 
-  /* ══════════ SAMPLE QUESTION ══════════ */
+  /* ══════════ QUESTION CARD ══════════ */
   .sample {
-    background: rgba(12,12,26,0.8);
-    border: 1px solid rgba(45,212,168,0.12);
-    border-radius: 16px;
-    padding: 2rem 2.5rem;
+    background: var(--stone);
+    border: 1px solid var(--fold);
+    border-radius: 4px;
+    padding: 2.5rem 2.5rem 2rem;
     margin-bottom: 3rem;
     position: relative;
-    box-shadow:
-      0 0 0 1px rgba(124,58,237,0.06),
-      inset 0 1px 0 rgba(45,212,168,0.04),
-      0 8px 32px rgba(0,0,0,0.4);
+    box-shadow: 0 2px 20px rgba(0,0,0,0.04);
   }
 
   .sample-label {
     position: absolute;
     top: -10px;
     left: 24px;
-    background: var(--deep);
-    padding: 0 8px;
-    font-size: 0.7rem;
-    color: var(--teal);
-    letter-spacing: 0.15em;
+    background: var(--paper);
+    padding: 0 10px;
+    font-size: 0.65rem;
+    color: var(--ink-faint);
+    letter-spacing: 0.2em;
     text-transform: uppercase;
-    opacity: 0.6;
   }
 
   .sample-q {
-    font-family: 'Inter', sans-serif;
-    font-size: clamp(1.1rem, 2.5vw, 1.5rem);
-    color: var(--cream);
-    line-height: 1.6;
+    font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+    color: var(--ink);
+    line-height: 1.7;
     font-weight: 400;
   }
 
   .new-q {
-    color: var(--teal);
+    color: var(--warm);
     background: none;
     border: none;
     font-family: 'Inter', sans-serif;
     font-size: 0.8rem;
     cursor: pointer;
-    margin-top: 1rem;
-    opacity: 0.5;
+    margin-top: 1.2rem;
+    opacity: 0.6;
     transition: opacity 0.3s;
     display: block;
   }
@@ -134,51 +123,51 @@
   }
 
   .signup input {
-    background: rgba(12,12,26,0.6);
-    border: 1px solid #2a2a3a;
-    color: var(--cream);
+    background: #fff;
+    border: 1px solid var(--fold);
+    color: var(--ink);
     font-family: 'Inter', sans-serif;
     font-size: 1rem;
     padding: 0.9rem 1.2rem;
-    border-radius: 8px;
+    border-radius: 4px;
     outline: none;
     width: 240px;
     transition: border-color 0.3s, box-shadow 0.3s;
   }
   .signup input:focus {
-    border-color: var(--teal);
-    box-shadow: 0 0 0 2px rgba(45,212,168,0.1);
+    border-color: var(--ink);
+    box-shadow: 0 0 0 2px rgba(0,0,0,0.05);
   }
-  .signup input::placeholder { color: #444; }
+  .signup input::placeholder { color: #bbb; }
 
   .signup button {
-    background: linear-gradient(135deg, var(--blue), var(--purple));
-    color: #fff;
+    background: var(--ink);
+    color: var(--paper);
     border: none;
     font-family: 'Inter', sans-serif;
-    font-size: 1rem;
-    font-weight: 700;
+    font-size: 0.9rem;
+    font-weight: 600;
     padding: 0.9rem 2rem;
-    border-radius: 8px;
+    border-radius: 4px;
     cursor: pointer;
     transition: all 0.3s;
+    letter-spacing: 0.03em;
   }
   .signup button:hover {
-    box-shadow: 0 0 30px rgba(37,99,235,0.3), 0 0 60px rgba(124,58,237,0.15);
+    background: #333;
     transform: translateY(-1px);
   }
 
   .fine-print {
-    color: #444;
+    color: var(--ink-faint);
     font-size: 0.75rem;
-    font-style: normal;
     margin-bottom: 4rem;
   }
 
   /* ══════════ HOW IT WORKS ══════════ */
   .how {
     display: flex;
-    gap: 2rem;
+    gap: 2.5rem;
     flex-wrap: wrap;
     justify-content: center;
     margin-bottom: 4rem;
@@ -191,46 +180,45 @@
   }
 
   .step-num {
-    font-family: 'Inter', sans-serif;
-    font-size: 2rem;
-    color: var(--gold-sparkle);
-    opacity: 0.7;
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: var(--ink);
+    opacity: 0.15;
   }
 
   .step-text {
-    color: #777;
+    color: var(--ink-light);
     font-size: 0.85rem;
-    line-height: 1.5;
+    line-height: 1.6;
     margin-top: 0.5rem;
   }
 
   /* ══════════ JOURNAL NOTE ══════════ */
   .journal-note {
-    max-width: 480px;
+    max-width: 460px;
     margin: 0 auto 4rem;
     text-align: center;
     padding: 0 1rem;
   }
   .journal-note p {
-    color: #666;
+    color: var(--ink-faint);
     font-size: 0.85rem;
-    font-style: normal;
-    line-height: 1.7;
+    line-height: 1.8;
   }
   .journal-note strong {
-    color: var(--teal);
-    font-style: normal;
+    color: var(--ink);
+    font-weight: 600;
   }
 
   /* ══════════ FOOTER ══════════ */
   .footer {
-    color: #3a3a4a;
+    color: var(--ink-faint);
     font-size: 0.7rem;
     padding: 2rem;
     text-align: center;
   }
-  .footer a { color: #555; text-decoration: none; }
-  .footer a:hover { color: var(--teal); }
+  .footer a { color: var(--ink-light); text-decoration: none; }
+  .footer a:hover { color: var(--ink); }
 
   /* ══════════ SUCCESS STATE ══════════ */
   .success {
@@ -240,21 +228,17 @@
   }
   .success.show { display: block; }
   .success h2 {
-    font-family: 'Inter', sans-serif;
-    background: linear-gradient(135deg, var(--teal), var(--blue));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
     font-size: 1.5rem;
+    font-weight: 900;
+    color: var(--ink);
     margin-bottom: 0.5rem;
   }
   .success p {
-    color: #777;
-    font-style: normal;
+    color: var(--ink-light);
   }
 
   @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(30px); }
+    from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
   }
 </style>
@@ -262,13 +246,13 @@
 <body>
 
 <div class="hero">
-  <div class="logo">y tho?</div>
-  <div class="tagline">One funny question a day.<br>It'll make you laugh. Then it won't leave you alone.</div>
+  <img src="whai-logo.png" alt="whai" class="logo-img">
+  <div class="subtitle">unserious deity of philosophy</div>
 
   <div class="sample">
     <span class="sample-label">Today's question</span>
     <div class="sample-q" id="sample-q"></div>
-    <button class="new-q" onclick="newQuestion()">another one →</button>
+    <button class="new-q" onclick="newQuestion()">another one &rarr;</button>
   </div>
 
   <div id="signup-form">
@@ -345,7 +329,6 @@ function subscribe() {
     document.getElementById('phone').style.borderColor = '#ff4444';
     return;
   }
-  // TODO: wire to Firebase
   document.getElementById('signup-form').style.display = 'none';
   document.getElementById('success').classList.add('show');
 }
