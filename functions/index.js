@@ -1,7 +1,14 @@
 const { onRequest } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
+const admin = require("firebase-admin");
+
+admin.initializeApp();
+const db = admin.firestore();
 
 const anthropicKey = defineSecret("ANTHROPIC_API_KEY");
+const twilioSid = defineSecret("TWILIO_SID");
+const twilioToken = defineSecret("TWILIO_TOKEN");
+const twilioFrom = defineSecret("TWILIO_FROM");
 
 const SYSTEM_PROMPT = `You are Philamor, a philosophical comedian who helps people discover themselves through brilliantly clever conversation. You send one question per day and respond to their answers.
 
@@ -109,5 +116,66 @@ exports.chat = onRequest({ secrets: [anthropicKey], cors: true, invoker: "public
   } catch (err) {
     console.error("API error:", err);
     res.status(500).json({ error: "AI temporarily unavailable" });
+  }
+});
+
+exports.subscribe = onRequest({ secrets: [twilioSid, twilioToken, twilioFrom], cors: true, invoker: "public" }, async (req, res) => {
+  if (req.method === "OPTIONS") {
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Access-Control-Allow-Methods", "POST");
+    res.set("Access-Control-Allow-Headers", "Content-Type");
+    res.status(204).send("");
+    return;
+  }
+
+  res.set("Access-Control-Allow-Origin", "*");
+
+  if (req.method !== "POST") {
+    res.status(405).json({ error: "POST only" });
+    return;
+  }
+
+  const { phone } = req.body;
+
+  if (!phone || phone.replace(/\D/g, "").length < 10) {
+    res.status(400).json({ error: "Valid phone number required" });
+    return;
+  }
+
+  // Normalize to digits only, prepend +1 if no country code
+  let normalized = phone.replace(/\D/g, "");
+  if (normalized.length === 10) normalized = "1" + normalized;
+  normalized = "+" + normalized;
+
+  try {
+    // Save subscriber to Firestore
+    const subscriberRef = db.collection("subscribers").doc(normalized);
+    const existing = await subscriberRef.get();
+
+    if (existing.exists && existing.data().confirmed) {
+      res.json({ status: "already_subscribed" });
+      return;
+    }
+
+    await subscriberRef.set({
+      phone: normalized,
+      subscribedAt: admin.firestore.FieldValue.serverTimestamp(),
+      confirmed: false,
+      day: 0
+    }, { merge: true });
+
+    // Send confirmation SMS via Twilio
+    const twilio = require("twilio")(twilioSid.value(), twilioToken.value());
+    await twilio.messages.create({
+      body: "Welcome to y tho? — reply YES to confirm and start receiving one weird philosophical question per day.",
+      from: twilioFrom.value(),
+      to: normalized
+    });
+
+    res.json({ status: "confirmation_sent" });
+
+  } catch (err) {
+    console.error("Subscribe error:", err);
+    res.status(500).json({ error: "Something went wrong. Try again." });
   }
 });

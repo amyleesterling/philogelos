@@ -7,5 +7,9 @@ service cloud.firestore {
     match /conversations/{userId}/messages/{messageId} {
       allow read, write: if true;
     }
+    match /subscribers/{phone} {
+      allow create: if true;
+      allow read, update, delete: if false;
+    }
   }
 }
