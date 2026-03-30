@@ -76,18 +76,29 @@
     font-weight: 300;
   }
 
-  /* ══════════ PAPER CARD ══════════ */
+  /* ══════════ STONE TABLET ══════════ */
   .sample {
-    background: linear-gradient(170deg, #fffdf8 0%, #f8f3eb 50%, #f5efe4 100%);
+    background:
+      linear-gradient(170deg, #d4cfc6 0%, #c8c2b8 30%, #bfb8ac 60%, #c5bfb4 100%);
     border: none;
-    border-radius: 4px;
+    border-radius: 6px;
     padding: 2.5rem 2.5rem 2rem;
     margin-bottom: 3rem;
     position: relative;
     box-shadow:
-      0 1px 3px rgba(0,0,0,0.05),
-      0 4px 12px rgba(0,0,0,0.03);
-    /* deckled edge only on card outline, not text */
+      inset 0 2px 4px rgba(255,255,255,0.3),
+      inset 0 -2px 6px rgba(0,0,0,0.15),
+      0 4px 12px rgba(0,0,0,0.15),
+      0 1px 3px rgba(0,0,0,0.1);
+  }
+  .sample::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 6px;
+    background:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='5' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E");
+    pointer-events: none;
   }
 
   /* SVG filter for handmade deckled paper edges */
@@ -101,23 +112,26 @@
     position: absolute;
     top: -10px;
     left: 24px;
-    background: var(--cream);
+    background: #ccc6bb;
     padding: 0 10px;
     font-size: 0.65rem;
-    color: var(--ink-faint);
+    color: #7a746a;
     letter-spacing: 0.2em;
     text-transform: uppercase;
   }
 
   .sample-q {
     font-size: clamp(1.1rem, 2.5vw, 1.4rem);
-    color: var(--ink);
+    color: #4a4540;
     line-height: 1.7;
-    font-weight: 400;
+    font-weight: 500;
+    text-shadow:
+      0 1px 1px rgba(255,255,255,0.4),
+      0 -1px 1px rgba(0,0,0,0.15);
   }
 
   .new-q {
-    color: var(--warm);
+    color: #7a746a;
     background: none;
     border: none;
     font-family: 'Inter', sans-serif;
