@@ -39,6 +39,10 @@
 
   body {
     background: var(--cream);
+    background-image:
+      radial-gradient(ellipse at 30% 20%, rgba(196,168,122,0.2) 0%, transparent 50%),
+      radial-gradient(ellipse at 70% 60%, rgba(180,160,130,0.15) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 90%, rgba(200,180,150,0.12) 0%, transparent 40%);
     color: var(--ink);
     font-family: 'Inter', sans-serif;
     overflow-x: hidden;
@@ -191,8 +195,8 @@
   }
 
   .step-num {
-    width: 72px;
-    height: 72px;
+    width: 120px;
+    height: 120px;
     object-fit: contain;
     margin-bottom: 0.75rem;
     transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -260,7 +264,7 @@
   @media (max-width: 600px) {
     .how { gap: 0.75rem; }
     .step { flex: 0 1 30%; padding: 0.75rem 0.5rem; }
-    .step-num { width: 48px; height: 48px; }
+    .step-num { width: 72px; height: 72px; }
     .step-text { font-size: 0.72rem; }
   }
 </style>
@@ -268,7 +272,7 @@
 <body>
 
 <div class="hero">
-  <img src="whai-logo.png" alt="whai" class="logo-img">
+  <img src="whai_logo_crop.png" alt="whai" class="logo-img">
   <div class="subtitle">unserious deity of philosophy</div>
 
   <div class="sample">
