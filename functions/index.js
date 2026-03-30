@@ -6,9 +6,10 @@ admin.initializeApp();
 const db = admin.firestore();
 
 const anthropicKey = defineSecret("ANTHROPIC_API_KEY");
-const twilioSid = defineSecret("TWILIO_SID");
-const twilioToken = defineSecret("TWILIO_TOKEN");
-const twilioFrom = defineSecret("TWILIO_FROM");
+// Twilio secrets — uncomment when toll-free verification clears
+// const twilioSid = defineSecret("TWILIO_SID");
+// const twilioToken = defineSecret("TWILIO_TOKEN");
+// const twilioFrom = defineSecret("TWILIO_FROM");
 
 const SYSTEM_PROMPT = `You are Philamor, a philosophical comedian who helps people discover themselves through brilliantly clever conversation. You send one question per day and respond to their answers.
 
@@ -119,7 +120,7 @@ exports.chat = onRequest({ secrets: [anthropicKey], cors: true, invoker: "public
   }
 });
 
-exports.subscribe = onRequest({ secrets: [twilioSid, twilioToken, twilioFrom], cors: true, invoker: "public" }, async (req, res) => {
+exports.subscribe = onRequest({ cors: true, invoker: "public" }, async (req, res) => {
   if (req.method === "OPTIONS") {
     res.set("Access-Control-Allow-Origin", "*");
     res.set("Access-Control-Allow-Methods", "POST");
@@ -142,17 +143,15 @@ exports.subscribe = onRequest({ secrets: [twilioSid, twilioToken, twilioFrom], c
     return;
   }
 
-  // Normalize to digits only, prepend +1 if no country code
   let normalized = phone.replace(/\D/g, "");
   if (normalized.length === 10) normalized = "1" + normalized;
   normalized = "+" + normalized;
 
   try {
-    // Save subscriber to Firestore
     const subscriberRef = db.collection("subscribers").doc(normalized);
     const existing = await subscriberRef.get();
 
-    if (existing.exists && existing.data().confirmed) {
+    if (existing.exists) {
       res.json({ status: "already_subscribed" });
       return;
     }
@@ -160,19 +159,10 @@ exports.subscribe = onRequest({ secrets: [twilioSid, twilioToken, twilioFrom], c
     await subscriberRef.set({
       phone: normalized,
       subscribedAt: admin.firestore.FieldValue.serverTimestamp(),
-      confirmed: false,
       day: 0
-    }, { merge: true });
-
-    // Send confirmation SMS via Twilio
-    const twilio = require("twilio")(twilioSid.value(), twilioToken.value());
-    await twilio.messages.create({
-      body: "Welcome to y tho? — reply YES to confirm and start receiving one weird philosophical question per day.",
-      from: twilioFrom.value(),
-      to: normalized
     });
 
-    res.json({ status: "confirmation_sent" });
+    res.json({ status: "subscribed" });
 
   } catch (err) {
     console.error("Subscribe error:", err);
