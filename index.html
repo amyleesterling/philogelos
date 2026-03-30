@@ -158,23 +158,35 @@
     align-items: center;
   }
   .share-btn {
-    background: none;
+    background: #faf8f4;
     border: 1px solid #e0d9cc;
+    border-bottom: 3px solid #d0c8b8;
     border-radius: 8px;
     padding: 6px 12px;
     cursor: pointer;
     font-family: 'Inter', sans-serif;
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     color: var(--ink-light);
     display: flex;
     align-items: center;
     gap: 5px;
-    transition: all 0.25s;
+    transition: all 0.15s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+    position: relative;
+    top: 0;
   }
   .share-btn:hover {
     border-color: var(--warm);
+    border-bottom-color: #b8a890;
     color: var(--ink);
-    transform: translateY(-1px);
+    top: -2px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  }
+  .share-btn:active {
+    top: 2px;
+    border-bottom-width: 1px;
+    box-shadow: 0 0px 1px rgba(0,0,0,0.06);
+    background: #f3efe8;
   }
   .share-btn svg { width: 14px; height: 14px; fill: currentColor; }
 
@@ -626,9 +638,9 @@ async function shareToX() {
 
 async function shareEmail() {
   const q = document.getElementById('sample-q').textContent;
-  const subject = encodeURIComponent('y tho? 🤔');
+  const subject = encodeURIComponent('y tho?');
   const body = encodeURIComponent(q + '\n\nMore at ytho.club');
-  window.location.href = 'mailto:?subject=' + subject + '&body=' + body;
+  window.open('mailto:?subject=' + subject + '&body=' + body, '_self');
 }
 
 async function shareToFB() {
