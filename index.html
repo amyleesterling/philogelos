@@ -190,71 +190,102 @@
   }
   .share-btn svg { width: 14px; height: 14px; fill: currentColor; }
 
-  /* ══════════ SIGNUP — GLASS ══════════ */
-  .signup {
-    display: flex;
-    gap: 0.5rem;
+  /* ══════════ STONE SIGNUP ══════════ */
+  .signup-stone {
+    background: linear-gradient(170deg, #c8c2b6 0%, #bfb9ac 30%, #b8b1a4 60%, #c2bcb0 100%);
+    border-radius: 6px;
+    padding: 1.5rem 2rem;
     margin-bottom: 1.5rem;
-    flex-wrap: wrap;
+    display: flex;
+    gap: 0;
+    align-items: stretch;
     justify-content: center;
+    box-shadow:
+      inset 0 2px 3px rgba(255,255,255,0.25),
+      inset 0 -2px 4px rgba(0,0,0,0.12),
+      0 4px 12px rgba(0,0,0,0.12),
+      0 1px 3px rgba(0,0,0,0.08);
+    position: relative;
+  }
+  /* stone noise texture */
+  .signup-stone::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 6px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='5' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+    pointer-events: none;
   }
 
-  .signup input {
-    background: linear-gradient(170deg, #e0dbd1 0%, #d9d3c8 50%, #e2ddd3 100%);
+  .signup-stone input {
+    background: linear-gradient(180deg, #a8a295 0%, #b0a99c 50%, #a8a295 100%);
     border: none;
+    color: #3a3632;
+    font-family: 'Inter', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 600;
+    padding: 1rem 1.2rem;
+    border-radius: 4px 0 0 4px;
+    outline: none;
+    width: 260px;
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z' fill='%234a4540'/%3E%3C/svg%3E") 2 22, text;
+    text-shadow:
+      0 1px 0 rgba(255,255,255,0.3),
+      0 -1px 1px rgba(0,0,0,0.15);
+    box-shadow:
+      inset 0 3px 6px rgba(0,0,0,0.2),
+      inset 0 -1px 2px rgba(255,255,255,0.15),
+      inset 2px 0 4px rgba(0,0,0,0.08);
+    transition: box-shadow 0.3s;
+    position: relative;
+    z-index: 1;
+  }
+  .signup-stone input:focus {
+    box-shadow:
+      inset 0 4px 8px rgba(0,0,0,0.25),
+      inset 0 -1px 2px rgba(255,255,255,0.15),
+      inset 2px 0 4px rgba(0,0,0,0.1);
+  }
+  .signup-stone input::placeholder {
+    color: #8a8478;
+    text-shadow: none;
+    font-weight: 400;
+  }
+
+  .signup-stone button {
+    background: linear-gradient(170deg, #c8c2b6 0%, #bfb9ac 50%, #b8b1a4 100%);
+    border: none;
+    border-left: 1px solid rgba(0,0,0,0.08);
     color: #4a4540;
     font-family: 'Inter', sans-serif;
     font-size: 1rem;
-    font-weight: 500;
-    padding: 0.9rem 1.2rem;
-    border-radius: 8px;
-    outline: none;
-    width: 240px;
-    text-shadow: 0 1px 1px rgba(255,255,255,0.4), 0 -1px 1px rgba(0,0,0,0.1);
-    box-shadow:
-      inset 0 2px 4px rgba(0,0,0,0.12),
-      inset 0 -1px 2px rgba(255,255,255,0.3),
-      0 1px 2px rgba(255,255,255,0.4);
-    transition: box-shadow 0.3s;
-  }
-  .signup input:focus {
-    box-shadow:
-      inset 0 3px 6px rgba(0,0,0,0.18),
-      inset 0 -1px 2px rgba(255,255,255,0.3),
-      0 1px 2px rgba(255,255,255,0.4);
-  }
-  .signup input::placeholder { color: #a09888; text-shadow: none; }
-
-  .signup button {
-    position: relative;
-    color: var(--ink);
-    border: none;
-    background: none;
-    font-family: 'Inter', sans-serif;
-    font-size: 0.9rem;
-    font-weight: 600;
-    padding: 0;
+    font-weight: 700;
+    padding: 1rem 1.8rem;
+    border-radius: 0 4px 4px 0;
     cursor: pointer;
-    transition: all 0.3s;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.02em;
     white-space: nowrap;
-  }
-  .signup button svg {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 0;
-  }
-  .signup button span {
+    text-shadow:
+      0 1px 0 rgba(255,255,255,0.35),
+      0 -1px 1px rgba(0,0,0,0.12);
+    box-shadow:
+      inset 0 1px 2px rgba(255,255,255,0.2),
+      inset 0 -2px 3px rgba(0,0,0,0.08);
+    transition: all 0.2s;
     position: relative;
     z-index: 1;
-    display: block;
-    padding: 0.9rem 2rem;
   }
-  .signup button:hover {
-    transform: translateY(-2px);
-    filter: brightness(1.03);
+  .signup-stone button:hover {
+    background: linear-gradient(170deg, #cec8bc 0%, #c5bfb3 50%, #beb8ab 100%);
+    text-shadow:
+      0 1px 0 rgba(255,255,255,0.4),
+      0 -1px 1px rgba(0,0,0,0.15);
+  }
+  .signup-stone button:active {
+    box-shadow:
+      inset 0 2px 4px rgba(0,0,0,0.15),
+      inset 0 -1px 1px rgba(255,255,255,0.1);
+    background: linear-gradient(170deg, #bab4a8 0%, #b3ada0 50%, #aca69a 100%);
   }
 
   .fine-print {
@@ -352,8 +383,9 @@
     .step { flex: 0 1 30%; padding: 0.75rem 0.5rem; }
     .step-num { width: 100px; height: 100px; }
     .step-text { font-size: 0.72rem; }
-    .signup button { font-size: 0.8rem; }
-    .signup button span { padding: 0.8rem 1.5rem; }
+    .signup-stone { flex-wrap: wrap; padding: 1rem; }
+    .signup-stone input { width: 100%; border-radius: 4px; }
+    .signup-stone button { border-radius: 4px; border-left: none; width: 100%; margin-top: 0.5rem; }
   }
 </style>
 </head>
@@ -395,45 +427,9 @@
   </div>
 
   <div id="signup-form">
-    <div class="signup">
-      <input type="tel" id="phone" placeholder="your phone number" autocomplete="tel">
-      <button onclick="subscribe()">
-        <svg viewBox="0 0 240 60" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-          <defs>
-            <linearGradient id="bodyGrad" x1="0" y1="0" x2="0.3" y2="1">
-              <stop offset="0%" stop-color="#fbf7f0"/>
-              <stop offset="50%" stop-color="#f5efe4"/>
-              <stop offset="100%" stop-color="#efe8da"/>
-            </linearGradient>
-            <filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-          </defs>
-          <!-- outer glow -->
-          <rect x="16" y="8" width="208" height="44" rx="4" fill="#f5efe4" opacity="0.4" filter="url(#glow)"/>
-          <!-- main center panel -->
-          <polygon points="28,7 212,7 216,12 216,48 212,53 28,53 24,48 24,12" fill="url(#bodyGrad)" stroke="#ddd5c4" stroke-width="0.6"/>
-          <!-- left gem facets -->
-          <polygon points="0,2 18,0 28,7 24,12" fill="#f0ead9" stroke="#ddd5c4" stroke-width="0.4"/>
-          <polygon points="0,2 0,30 24,12" fill="#ede7db" stroke="#ddd5c4" stroke-width="0.4"/>
-          <polygon points="0,30 0,58 24,48" fill="#e8e0d0" stroke="#ddd5c4" stroke-width="0.4"/>
-          <polygon points="0,58 18,60 28,53 24,48" fill="#e5ddd0" stroke="#ddd5c4" stroke-width="0.4"/>
-          <polygon points="24,12 24,48 0,30" fill="#ebe4d5" stroke="#ddd5c4" stroke-width="0.4"/>
-          <!-- right gem facets -->
-          <polygon points="240,2 222,0 212,7 216,12" fill="#f0ead9" stroke="#ddd5c4" stroke-width="0.4"/>
-          <polygon points="240,2 240,30 216,12" fill="#ede7db" stroke="#ddd5c4" stroke-width="0.4"/>
-          <polygon points="240,30 240,58 216,48" fill="#e8e0d0" stroke="#ddd5c4" stroke-width="0.4"/>
-          <polygon points="240,58 222,60 212,53 216,48" fill="#e5ddd0" stroke="#ddd5c4" stroke-width="0.4"/>
-          <polygon points="216,12 216,48 240,30" fill="#ebe4d5" stroke="#ddd5c4" stroke-width="0.4"/>
-          <!-- diagonal body crease -->
-          <line x1="60" y1="7" x2="180" y2="53" stroke="#e8e2d6" stroke-width="0.5" opacity="0.3"/>
-          <!-- top-left body triangle facet -->
-          <polygon points="28,7 120,7 60,30 24,12" fill="white" opacity="0.08"/>
-          <!-- bottom-right body triangle facet -->
-          <polygon points="212,53 120,53 180,30 216,48" fill="#e8e0d0" opacity="0.15"/>
-          <!-- top highlight strip -->
-          <polygon points="28,7 212,7 200,13 40,13" fill="white" opacity="0.18"/>
-        </svg>
-        <span>send me questions</span>
-      </button>
+    <div class="signup-stone">
+      <input type="tel" id="phone" placeholder="chisel your number here" autocomplete="tel">
+      <button onclick="subscribe()">send me questions</button>
     </div>
     <div class="fine-print">One text per day. No spam. Unsubscribe anytime. Free for nao.</div>
   </div>
@@ -506,10 +502,9 @@ async function subscribe() {
     return;
   }
 
-  const btn = document.querySelector('.signup button');
-  const btnLabel = btn.querySelector('span');
+  const btn = document.querySelector('.signup-stone button');
   btn.disabled = true;
-  btnLabel.textContent = 'sending...';
+  btn.textContent = 'carving...';
 
   try {
     const res = await fetch('https://subscribe-msg6fngvzq-uc.a.run.app', {
@@ -524,13 +519,12 @@ async function subscribe() {
       document.getElementById('success').classList.add('show');
     } else {
       btn.disabled = false;
-      btnLabel.textContent = 'send me questions';
+      btn.textContent = 'send me questions';
       phoneInput.style.borderColor = '#ff4444';
     }
   } catch (err) {
     btn.disabled = false;
     btn.textContent = 'send me questions';
-    phoneInput.style.borderColor = '#ff4444';
   }
 }
 
