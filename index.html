@@ -135,14 +135,28 @@
     height: 0;
   }
 
+  .sample-label-wrap {
+    position: relative;
+    display: inline-block;
+    margin-bottom: 1rem;
+  }
+  .sample-label-wrap svg {
+    position: absolute;
+    inset: -6px -12px;
+    width: calc(100% + 24px);
+    height: calc(100% + 12px);
+    z-index: 0;
+  }
   .sample-label {
+    position: relative;
+    z-index: 1;
     display: block;
     font-size: 0.75rem;
     color: var(--ink-faint);
     letter-spacing: 0.2em;
     text-transform: uppercase;
-    margin-bottom: 1.5rem;
     text-align: left;
+    padding: 0;
   }
 
   .sample-q {
@@ -260,8 +274,8 @@
   }
 
   .signup-stone button {
-    background: var(--ink);
-    color: #fffdf8;
+    background: #5c6b7a;
+    color: #f5f2ed;
     border: none;
     font-family: 'Inter', sans-serif;
     font-size: 1rem;
@@ -274,7 +288,7 @@
     white-space: nowrap;
   }
   .signup-stone button:hover {
-    background: #333;
+    background: #4d5c6a;
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   }
@@ -434,7 +448,30 @@
         <polygon points="100,40 350,150 200,180 30,70" fill="#f0ece4" opacity="0.15"/>
       </svg>
     </div>
-    <div class="sample-label">Today's question</div>
+    <div class="sample-label-wrap">
+      <svg viewBox="0 0 200 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- base sheet -->
+        <polygon points="0,6 200,0 200,34 0,40" fill="#ede8df"/>
+        <!-- top-left corner -->
+        <polygon points="0,6 12,0 8,8" fill="#f5f1ea"/>
+        <polygon points="0,6 8,8 0,14" fill="#e3ded3"/>
+        <!-- top edge -->
+        <polygon points="12,0 188,0 185,5 15,7" fill="#f2ede5" opacity="0.4"/>
+        <line x1="8" y1="8" x2="192" y2="3" stroke="#faf7f2" stroke-width="0.4" opacity="0.5"/>
+        <!-- top-right corner -->
+        <polygon points="188,0 200,0 192,3" fill="#f5f1ea"/>
+        <polygon points="200,0 200,10 192,3" fill="#e0dbd0"/>
+        <!-- bottom-right corner -->
+        <polygon points="200,34 200,28 194,32" fill="#ddd8cc"/>
+        <polygon points="194,32 200,34 190,40" fill="#e2ddd2" opacity="0.6"/>
+        <!-- bottom edge -->
+        <line x1="8" y1="36" x2="192" y2="32" stroke="#faf7f2" stroke-width="0.3" opacity="0.4"/>
+        <!-- bottom-left corner -->
+        <polygon points="0,40 10,40 6,35" fill="#ddd8cc"/>
+        <polygon points="0,40 0,32 6,35" fill="#e5e0d5"/>
+      </svg>
+      <div class="sample-label">Today's question</div>
+    </div>
     <div class="sample">
     <div class="sample-q" id="sample-q"></div>
     <button class="new-q" onclick="newQuestion()">another one &rarr;</button>
@@ -513,7 +550,7 @@
         <div style="font-size:0.7rem; color:#999; margin-bottom:0.5rem;">AI-generated origami</div>
         <div style="background:url('origami_button_crop.png') center/cover no-repeat; border-radius:6px; padding:1.5rem 2rem; display:flex; gap:0.5rem; align-items:center; justify-content:center;">
           <input type="tel" placeholder="your phone number" style="background:rgba(255,255,255,0.85); border:1px solid #e0d9cc; color:#1a1a1a; font-family:Inter,sans-serif; font-size:1.1rem; padding:1rem 1.2rem; border-radius:8px; outline:none; width:260px;">
-          <button style="background:#1a1a1a; color:#fffdf8; border:none; font-family:Inter,sans-serif; font-size:1rem; font-weight:600; padding:1rem 2rem; border-radius:8px; cursor:pointer; white-space:nowrap;">send me questions</button>
+          <button style="background:#5c6b7a; color:#f5f2ed; border:none; font-family:Inter,sans-serif; font-size:1rem; font-weight:600; padding:1rem 2rem; border-radius:8px; cursor:pointer; white-space:nowrap;">send me questions</button>
         </div>
       </div>
     </div>
