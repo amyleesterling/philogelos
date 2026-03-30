@@ -373,6 +373,65 @@
     to { opacity: 1; transform: translateY(0); }
   }
 
+  /* ══════════ SPROUTING PLANTS ══════════ */
+  .plants-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 700px;
+    height: 250px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+    margin-top: -200px;
+    margin-bottom: -50px;
+  }
+  .plants-wrap.visible { opacity: 1; }
+
+  .plant-left, .plant-right {
+    position: absolute;
+    bottom: 0;
+  }
+  .plant-left { left: 0; }
+  .plant-right { right: 0; transform: scaleX(-1); }
+
+  .plant-stem {
+    stroke-dasharray: 400;
+    stroke-dashoffset: 400;
+    transition: stroke-dashoffset 2s ease;
+  }
+  .plants-wrap.visible .plant-stem {
+    stroke-dashoffset: 0;
+  }
+
+  /* Leaves scale out from their attachment point on the stem */
+  .plant-left .plant-leaf { transform-origin: right center; }
+  .plant-left .plant-leaf.l2, .plant-left .plant-leaf.l4 { transform-origin: left center; }
+  .plant-right .plant-leaf { transform-origin: left center; }
+  .plant-right .plant-leaf.l2 { transform-origin: right center; }
+
+  .plant-leaf {
+    opacity: 0;
+    transform: scaleX(0) scaleY(0.3);
+    transition: opacity 0.4s ease, transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  /* Leaves appear as stem reaches their height — staggered with stem growth */
+  .plants-wrap.visible .plant-leaf.l1 { opacity: 1; transform: scale(1); transition-delay: 0.5s; }
+  .plants-wrap.visible .plant-leaf.l2 { opacity: 1; transform: scale(1); transition-delay: 1.0s; }
+  .plants-wrap.visible .plant-leaf.l3 { opacity: 1; transform: scale(1); transition-delay: 1.4s; }
+  .plants-wrap.visible .plant-leaf.l4 { opacity: 1; transform: scale(1); transition-delay: 1.7s; }
+
+  .plant-flower {
+    opacity: 0;
+    transform-origin: center bottom;
+    transform: scale(0);
+    transition: opacity 0.5s ease, transform 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .plants-wrap.visible .plant-flower {
+    opacity: 1;
+    transform: scale(1);
+    transition-delay: 2.2s;
+  }
+
   /* ══════════ MOBILE ══════════ */
   @media (max-width: 600px) {
     .how { gap: 0.75rem; }
@@ -545,6 +604,48 @@
 
 <div class="footer">
   made by <a href="https://x.com/amyneurons">amy</a> & claude — named after the world's oldest joke book (4th century AD)
+</div>
+
+<!-- Sprouting plants -->
+<div class="plants-wrap" id="plants">
+  <svg class="plant-left" width="100" height="300" viewBox="-10 20 100 300" overflow="visible">
+    <!-- stem -->
+    <path class="plant-stem" d="M40 320 Q38 260 42 220 Q44 190 38 160 Q34 135 40 100"
+      fill="none" stroke="#7a9a6a" stroke-width="2.5" stroke-linecap="round"/>
+    <!-- leaves -->
+    <path class="plant-leaf l1" d="M40 240 C24 235 12 225 15 218 C20 222 32 232 40 236" fill="#8ab47a" opacity="0.85"/>
+    <path class="plant-leaf l2" d="M42 200 C58 195 70 185 67 178 C62 182 50 192 42 196" fill="#7aaa6a" opacity="0.8"/>
+    <path class="plant-leaf l3" d="M38 160 C22 155 10 145 13 138 C18 142 30 152 38 156" fill="#8ab47a" opacity="0.85"/>
+    <path class="plant-leaf l4" d="M40 130 C56 125 68 115 65 108 C60 112 48 122 40 126" fill="#7aaa6a" opacity="0.8"/>
+    <!-- flower -->
+    <g class="plant-flower" transform="translate(40,85)">
+      <ellipse cx="-10" cy="-8" rx="8" ry="12" fill="#e8c4a0" opacity="0.9" transform="rotate(-30)"/>
+      <ellipse cx="10" cy="-8" rx="8" ry="12" fill="#e8c4a0" opacity="0.9" transform="rotate(30)"/>
+      <ellipse cx="-13" cy="5" rx="8" ry="12" fill="#ddb890" opacity="0.85" transform="rotate(-60)"/>
+      <ellipse cx="13" cy="5" rx="8" ry="12" fill="#ddb890" opacity="0.85" transform="rotate(60)"/>
+      <ellipse cx="0" cy="-14" rx="7" ry="11" fill="#f0d4b0" opacity="0.95"/>
+      <circle cx="0" cy="0" r="5" fill="#c4a060"/>
+    </g>
+  </svg>
+
+  <svg class="plant-right" width="100" height="280" viewBox="-10 30 100 280" overflow="visible">
+    <!-- stem -->
+    <path class="plant-stem" d="M40 310 Q42 260 38 225 Q36 195 40 165 Q43 140 38 105"
+      fill="none" stroke="#7a9a6a" stroke-width="2.5" stroke-linecap="round"/>
+    <!-- leaves sprout from stem points -->
+    <path class="plant-leaf l1" d="M40 230 C55 225 65 215 60 210 C55 215 45 222 40 225" fill="#8ab47a" opacity="0.85"/>
+    <path class="plant-leaf l2" d="M38 195 C22 190 12 180 17 175 C22 180 32 188 38 192" fill="#7aaa6a" opacity="0.8"/>
+    <path class="plant-leaf l3" d="M40 160 C56 155 66 145 61 140 C56 145 46 153 40 157" fill="#8ab47a" opacity="0.85"/>
+    <!-- flower -->
+    <g class="plant-flower" transform="translate(38,90)">
+      <ellipse cx="-9" cy="-7" rx="7" ry="11" fill="#d4a8b0" opacity="0.9" transform="rotate(-25)"/>
+      <ellipse cx="9" cy="-7" rx="7" ry="11" fill="#d4a8b0" opacity="0.9" transform="rotate(25)"/>
+      <ellipse cx="-12" cy="4" rx="7" ry="11" fill="#c89aa2" opacity="0.85" transform="rotate(-55)"/>
+      <ellipse cx="12" cy="4" rx="7" ry="11" fill="#c89aa2" opacity="0.85" transform="rotate(55)"/>
+      <ellipse cx="0" cy="-12" rx="6" ry="10" fill="#e0b8c0" opacity="0.95"/>
+      <circle cx="0" cy="0" r="4.5" fill="#b08870"/>
+    </g>
+  </svg>
 </div>
 
 <script>
@@ -734,6 +835,19 @@ async function saveImage() {
   link.href = canvas.toDataURL('image/png');
   link.click();
 }
+
+// Sprouting plants on scroll to bottom
+const plantsEl = document.getElementById('plants');
+let plantsShown = false;
+window.addEventListener('scroll', () => {
+  if (plantsShown) return;
+  const scrollBottom = window.innerHeight + window.scrollY;
+  const pageHeight = document.documentElement.scrollHeight;
+  if (scrollBottom >= pageHeight - 100) {
+    plantsEl.classList.add('visible');
+    plantsShown = true;
+  }
+});
 </script>
 </body>
 </html>
