@@ -132,6 +132,35 @@
   }
   .new-q:hover { opacity: 1; }
 
+  /* ══════════ SHARE BUTTONS ══════════ */
+  .share-row {
+    display: flex;
+    gap: 0.6rem;
+    margin-top: 1rem;
+    justify-content: flex-start;
+    align-items: center;
+  }
+  .share-btn {
+    background: none;
+    border: 1px solid #e0d9cc;
+    border-radius: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.72rem;
+    color: var(--ink-light);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.25s;
+  }
+  .share-btn:hover {
+    border-color: var(--warm);
+    color: var(--ink);
+    transform: translateY(-1px);
+  }
+  .share-btn svg { width: 14px; height: 14px; fill: currentColor; }
+
   /* ══════════ SIGNUP — GLASS ══════════ */
   .signup {
     display: flex;
@@ -307,6 +336,20 @@
     <span class="sample-label">Today's question</span>
     <div class="sample-q" id="sample-q"></div>
     <button class="new-q" onclick="newQuestion()">another one &rarr;</button>
+    <div class="share-row">
+      <button class="share-btn" onclick="shareToX()">
+        <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        share
+      </button>
+      <button class="share-btn" onclick="shareToFB()">
+        <svg viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+        share
+      </button>
+      <button class="share-btn" onclick="saveImage()">
+        <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+        save
+      </button>
+    </div>
   </div>
 
   <div id="signup-form">
@@ -450,6 +493,118 @@ async function subscribe() {
 }
 
 newQuestion();
+
+// ══════════ SHARE IMAGE GENERATION ══════════
+function generateShareImage() {
+  return new Promise((resolve) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1080;
+    canvas.height = 1080;
+    const ctx = canvas.getContext('2d');
+
+    // cream background
+    ctx.fillStyle = '#f0ebe3';
+    ctx.fillRect(0, 0, 1080, 1080);
+
+    // warm radial glow
+    const grd = ctx.createRadialGradient(540, 400, 0, 540, 400, 500);
+    grd.addColorStop(0, 'rgba(196,168,122,0.12)');
+    grd.addColorStop(1, 'transparent');
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, 1080, 1080);
+
+    // paper card
+    const cx = 90, cy = 340, cw = 900, ch = 400;
+    ctx.fillStyle = '#fffdf8';
+    ctx.shadowColor = 'rgba(0,0,0,0.06)';
+    ctx.shadowBlur = 30;
+    ctx.shadowOffsetY = 8;
+    ctx.beginPath();
+    ctx.roundRect(cx, cy, cw, ch, 8);
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+
+    // question text
+    const q = document.getElementById('sample-q').textContent;
+    ctx.fillStyle = '#1a1a1a';
+    ctx.font = '400 38px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+
+    // word wrap
+    const words = q.split(' ');
+    const lines = [];
+    let line = '';
+    const maxW = cw - 120;
+    for (const word of words) {
+      const test = line + (line ? ' ' : '') + word;
+      if (ctx.measureText(test).width > maxW && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = test;
+      }
+    }
+    lines.push(line);
+
+    const lineH = 54;
+    const textY = cy + (ch - lines.length * lineH) / 2;
+    lines.forEach((l, i) => {
+      ctx.fillText(l, 540, textY + i * lineH);
+    });
+
+    // load logo
+    const logo = new Image();
+    logo.crossOrigin = 'anonymous';
+    logo.onload = () => {
+      const logoW = 360;
+      const logoH = logo.height * (logoW / logo.width);
+      ctx.drawImage(logo, (1080 - logoW) / 2, 80, logoW, logoH);
+
+      // subtitle
+      ctx.fillStyle = '#999';
+      ctx.font = '300 16px Inter, sans-serif';
+      ctx.letterSpacing = '3px';
+      ctx.fillText('UNSERIOUS DEITY OF PHILOSOPHY', 540, 80 + logoH + 10);
+
+      // footer
+      ctx.fillStyle = '#bbb';
+      ctx.font = '300 20px Inter, sans-serif';
+      ctx.fillText('ytho.club', 540, 820);
+
+      resolve(canvas);
+    };
+    logo.onerror = () => {
+      // fallback: text logo
+      ctx.fillStyle = '#1a1a1a';
+      ctx.font = '900 72px Inter, sans-serif';
+      ctx.fillText('y tho?', 540, 160);
+      ctx.fillStyle = '#bbb';
+      ctx.font = '300 20px Inter, sans-serif';
+      ctx.fillText('ytho.club', 540, 820);
+      resolve(canvas);
+    };
+    logo.src = 'whai_logo_crop.png';
+  });
+}
+
+async function shareToX() {
+  const q = document.getElementById('sample-q').textContent;
+  const text = encodeURIComponent(q + '\n\nytho.club');
+  window.open('https://twitter.com/intent/tweet?text=' + text, '_blank');
+}
+
+async function shareToFB() {
+  window.open('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent('https://ytho.club'), '_blank');
+}
+
+async function saveImage() {
+  const canvas = await generateShareImage();
+  const link = document.createElement('a');
+  link.download = 'ytho-question.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
 </script>
 </body>
 </html>
