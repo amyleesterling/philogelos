@@ -80,27 +80,23 @@
 
   /* ══════════ PAPER CARD ══════════ */
   .sample {
-    background:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E"),
-      linear-gradient(170deg, #fffdf8 0%, #f8f3eb 50%, #f5efe4 100%);
+    background: linear-gradient(170deg, #fffdf8 0%, #f8f3eb 50%, #f5efe4 100%);
     border: none;
-    border-radius: 16px;
+    border-radius: 4px;
     padding: 2.5rem 2.5rem 2rem;
     margin-bottom: 3rem;
     position: relative;
     box-shadow:
-      0 1px 3px rgba(0,0,0,0.04),
+      0 1px 3px rgba(0,0,0,0.05),
       0 4px 12px rgba(0,0,0,0.03);
+    filter: url(#deckled-edge);
   }
-  /* folded corner */
-  .sample::after {
-    content: '';
+
+  /* SVG filter for handmade deckled paper edges */
+  .svg-filters {
     position: absolute;
-    bottom: 0; right: 0;
-    width: 32px; height: 32px;
-    background: linear-gradient(225deg, var(--cream) 50%, #e8e2d6 50%, #ede7db 60%, #f5efe4 100%);
-    border-radius: 0 0 16px 0;
-    box-shadow: -2px -2px 4px rgba(0,0,0,0.02);
+    width: 0;
+    height: 0;
   }
 
   .sample-label {
@@ -295,6 +291,13 @@
 </style>
 </head>
 <body>
+
+<svg class="svg-filters">
+  <filter id="deckled-edge">
+    <feTurbulence type="turbulence" baseFrequency="0.04" numOctaves="4" result="noise" seed="2"/>
+    <feDisplacementMap in="SourceGraphic" in2="noise" scale="4" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</svg>
 
 <div class="hero">
   <img src="whai_logo_crop.png" alt="whai" class="logo-img">
