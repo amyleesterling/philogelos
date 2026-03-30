@@ -194,14 +194,32 @@
   }
   .share-btn svg { width: 14px; height: 14px; fill: currentColor; }
 
-  /* ══════════ SIGNUP ══════════ */
+  /* ══════════ ORIGAMI SIGNUP ══════════ */
+  .signup-wrap {
+    position: relative;
+    margin-bottom: 1.5rem;
+    padding: 2.5rem 2rem;
+  }
+
+  /* origami background — folded paper planes */
+  .origami-bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+  }
+  .origami-bg svg {
+    width: 100%;
+    height: 100%;
+  }
+
   .signup-stone {
     display: flex;
     gap: 0.5rem;
-    margin-bottom: 1.5rem;
     flex-wrap: wrap;
     justify-content: center;
     position: relative;
+    z-index: 1;
   }
 
   .signup-stone input {
@@ -387,9 +405,45 @@
   </div>
 
   <div id="signup-form">
-    <div class="signup-stone">
-      <input type="tel" id="phone" placeholder="your phone number" autocomplete="tel">
-      <button onclick="subscribe()">send me questions</button>
+    <div class="signup-wrap">
+      <div class="origami-bg">
+        <svg viewBox="0 0 600 160" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- base sheet -->
+          <polygon points="0,20 600,0 600,140 0,160" fill="#f0ece4"/>
+          <!-- main center plane -->
+          <polygon points="20,28 580,8 580,132 20,152" fill="#ede8df"/>
+          <!-- top-left fold -->
+          <polygon points="0,20 20,28 20,80 0,75" fill="#e5e0d5"/>
+          <polygon points="0,20 140,10 20,28" fill="#f5f1ea"/>
+          <!-- top crease highlight -->
+          <line x1="20" y1="28" x2="580" y2="8" stroke="#faf7f2" stroke-width="0.8" opacity="0.7"/>
+          <!-- diagonal fold from top-left -->
+          <polygon points="20,28 300,70 20,80" fill="#e8e3d9" opacity="0.5"/>
+          <line x1="20" y1="28" x2="300" y2="70" stroke="#d8d2c6" stroke-width="0.5" opacity="0.4"/>
+          <!-- right side fold -->
+          <polygon points="580,8 600,0 600,65 580,60" fill="#e3ded3"/>
+          <polygon points="580,60 600,65 600,140 580,132" fill="#ddd8cc"/>
+          <!-- bottom fold -->
+          <polygon points="20,152 580,132 600,140 0,160" fill="#e0dbd0"/>
+          <line x1="20" y1="152" x2="580" y2="132" stroke="#faf7f2" stroke-width="0.6" opacity="0.5"/>
+          <!-- subtle center diamond facet -->
+          <polygon points="200,40 400,30 350,90 150,100" fill="#f2ede5" opacity="0.35"/>
+          <!-- lower-right tuck shadow -->
+          <polygon points="350,90 580,132 580,60 400,30" fill="#dbd5c9" opacity="0.25"/>
+          <!-- top-right triangle facet -->
+          <polygon points="400,30 580,8 580,60" fill="#e8e4db" opacity="0.4"/>
+          <!-- bottom-left corner fold -->
+          <polygon points="0,160 20,152 20,120 0,125" fill="#d5d0c4"/>
+          <polygon points="0,125 20,120 80,140 0,160" fill="#e2ddd2" opacity="0.6"/>
+          <!-- micro crease details -->
+          <line x1="150" y1="100" x2="20" y2="152" stroke="#cec8bc" stroke-width="0.4" opacity="0.3"/>
+          <line x1="400" y1="30" x2="580" y2="60" stroke="#f0ece4" stroke-width="0.5" opacity="0.4"/>
+        </svg>
+      </div>
+      <div class="signup-stone">
+        <input type="tel" id="phone" placeholder="your phone number" autocomplete="tel">
+        <button onclick="subscribe()">send me questions</button>
+      </div>
     </div>
     <div class="fine-print">One text per day. No spam. Unsubscribe anytime. Free for nao.</div>
   </div>
