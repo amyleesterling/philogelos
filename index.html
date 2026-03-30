@@ -56,8 +56,9 @@
   /* ══════════ HERO ══════════ */
   .hero {
     text-align: center;
-    padding: 3rem 2rem;
+    padding: 3rem 1.5rem;
     max-width: 720px;
+    width: 100%;
     animation: fadeUp 1.2s ease;
   }
 
@@ -309,23 +310,39 @@
     <div class="signup">
       <input type="tel" id="phone" placeholder="your phone number" autocomplete="tel">
       <button onclick="subscribe()">
-        <svg viewBox="0 0 220 56" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-          <!-- main body -->
-          <polygon points="12,6 208,6 214,14 214,42 208,50 12,50 6,42 6,14" fill="#f5efe4" stroke="#ddd5c4" stroke-width="0.75"/>
-          <!-- top-left fold -->
-          <polygon points="0,0 24,0 12,6 6,14 0,0" fill="#ede7db" stroke="#ddd5c4" stroke-width="0.5"/>
-          <!-- top-right fold -->
-          <polygon points="220,0 196,0 208,6 214,14 220,0" fill="#ede7db" stroke="#ddd5c4" stroke-width="0.5"/>
-          <!-- bottom-left fold -->
-          <polygon points="0,56 24,56 12,50 6,42 0,56" fill="#e8e2d6" stroke="#ddd5c4" stroke-width="0.5"/>
-          <!-- bottom-right fold -->
-          <polygon points="220,56 196,56 208,50 214,42 220,56" fill="#e8e2d6" stroke="#ddd5c4" stroke-width="0.5"/>
-          <!-- subtle diagonal crease lines -->
-          <line x1="60" y1="6" x2="50" y2="28" stroke="#e8e2d6" stroke-width="0.5" opacity="0.6"/>
-          <line x1="160" y1="6" x2="170" y2="28" stroke="#e8e2d6" stroke-width="0.5" opacity="0.6"/>
-          <line x1="110" y1="6" x2="110" y2="14" stroke="#ede7db" stroke-width="0.5" opacity="0.4"/>
-          <!-- top highlight -->
-          <polygon points="12,6 208,6 200,12 20,12" fill="white" opacity="0.15"/>
+        <svg viewBox="0 0 240 60" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="bodyGrad" x1="0" y1="0" x2="0.3" y2="1">
+              <stop offset="0%" stop-color="#fbf7f0"/>
+              <stop offset="50%" stop-color="#f5efe4"/>
+              <stop offset="100%" stop-color="#efe8da"/>
+            </linearGradient>
+            <filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          </defs>
+          <!-- outer glow -->
+          <rect x="16" y="8" width="208" height="44" rx="4" fill="#f5efe4" opacity="0.4" filter="url(#glow)"/>
+          <!-- main center panel -->
+          <polygon points="28,7 212,7 216,12 216,48 212,53 28,53 24,48 24,12" fill="url(#bodyGrad)" stroke="#ddd5c4" stroke-width="0.6"/>
+          <!-- left gem facets -->
+          <polygon points="0,2 18,0 28,7 24,12" fill="#f0ead9" stroke="#ddd5c4" stroke-width="0.4"/>
+          <polygon points="0,2 0,30 24,12" fill="#ede7db" stroke="#ddd5c4" stroke-width="0.4"/>
+          <polygon points="0,30 0,58 24,48" fill="#e8e0d0" stroke="#ddd5c4" stroke-width="0.4"/>
+          <polygon points="0,58 18,60 28,53 24,48" fill="#e5ddd0" stroke="#ddd5c4" stroke-width="0.4"/>
+          <polygon points="24,12 24,48 0,30" fill="#ebe4d5" stroke="#ddd5c4" stroke-width="0.4"/>
+          <!-- right gem facets -->
+          <polygon points="240,2 222,0 212,7 216,12" fill="#f0ead9" stroke="#ddd5c4" stroke-width="0.4"/>
+          <polygon points="240,2 240,30 216,12" fill="#ede7db" stroke="#ddd5c4" stroke-width="0.4"/>
+          <polygon points="240,30 240,58 216,48" fill="#e8e0d0" stroke="#ddd5c4" stroke-width="0.4"/>
+          <polygon points="240,58 222,60 212,53 216,48" fill="#e5ddd0" stroke="#ddd5c4" stroke-width="0.4"/>
+          <polygon points="216,12 216,48 240,30" fill="#ebe4d5" stroke="#ddd5c4" stroke-width="0.4"/>
+          <!-- diagonal body crease -->
+          <line x1="60" y1="7" x2="180" y2="53" stroke="#e8e2d6" stroke-width="0.5" opacity="0.3"/>
+          <!-- top-left body triangle facet -->
+          <polygon points="28,7 120,7 60,30 24,12" fill="white" opacity="0.08"/>
+          <!-- bottom-right body triangle facet -->
+          <polygon points="212,53 120,53 180,30 216,48" fill="#e8e0d0" opacity="0.15"/>
+          <!-- top highlight strip -->
+          <polygon points="28,7 212,7 200,13 40,13" fill="white" opacity="0.18"/>
         </svg>
         <span>send me questions</span>
       </button>
