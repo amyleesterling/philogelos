@@ -183,22 +183,30 @@
   }
 
   .signup input {
-    background: #fffdf8;
-    border: 1px solid #e8e2d6;
-    color: var(--ink);
+    background: linear-gradient(170deg, #e0dbd1 0%, #d9d3c8 50%, #e2ddd3 100%);
+    border: none;
+    color: #4a4540;
     font-family: 'Inter', sans-serif;
     font-size: 1rem;
+    font-weight: 500;
     padding: 0.9rem 1.2rem;
-    border-radius: 12px;
+    border-radius: 8px;
     outline: none;
     width: 240px;
-    transition: border-color 0.3s, box-shadow 0.3s;
+    text-shadow: 0 1px 1px rgba(255,255,255,0.4), 0 -1px 1px rgba(0,0,0,0.1);
+    box-shadow:
+      inset 0 2px 4px rgba(0,0,0,0.12),
+      inset 0 -1px 2px rgba(255,255,255,0.3),
+      0 1px 2px rgba(255,255,255,0.4);
+    transition: box-shadow 0.3s;
   }
   .signup input:focus {
-    border-color: var(--warm);
-    box-shadow: 0 0 0 3px rgba(196,168,122,0.12);
+    box-shadow:
+      inset 0 3px 6px rgba(0,0,0,0.18),
+      inset 0 -1px 2px rgba(255,255,255,0.3),
+      0 1px 2px rgba(255,255,255,0.4);
   }
-  .signup input::placeholder { color: #c0b8a8; }
+  .signup input::placeholder { color: #a09888; text-shadow: none; }
 
   .signup button {
     position: relative;
