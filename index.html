@@ -127,9 +127,12 @@
 
   .sample-q {
     font-size: clamp(1.1rem, 2.5vw, 1.4rem);
-    color: var(--ink);
+    color: #3a3632;
     line-height: 1.7;
-    font-weight: 400;
+    font-weight: 600;
+    text-shadow:
+      0 1px 0 rgba(255,255,255,0.5),
+      0 -1px 1px rgba(0,0,0,0.08);
   }
 
   .new-q {
@@ -497,7 +500,7 @@ async function subscribe() {
   btnLabel.textContent = 'sending...';
 
   try {
-    const res = await fetch('https://us-central1-ytho-4bff2.cloudfunctions.net/subscribe', {
+    const res = await fetch('https://subscribe-msg6fngvzq-uc.a.run.app', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone })
