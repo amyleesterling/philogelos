@@ -194,106 +194,58 @@
   }
   .share-btn svg { width: 14px; height: 14px; fill: currentColor; }
 
-  /* ══════════ STONE SIGNUP ══════════ */
+  /* ══════════ SIGNUP ══════════ */
   .signup-stone {
-    background: #9e9890;
-    border-radius: 3px;
-    padding: 1.5rem 2rem;
-    margin-bottom: 1.5rem;
     display: flex;
-    gap: 0;
-    align-items: stretch;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
     justify-content: center;
-    box-shadow:
-      inset 0 1px 0 rgba(255,255,255,0.12),
-      0 2px 6px rgba(0,0,0,0.18),
-      0 1px 2px rgba(0,0,0,0.12);
     position: relative;
-    filter: url(#stone-edge);
-  }
-  /* speckled matte texture */
-  .signup-stone::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: 3px;
-    background:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='s'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='6' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23s)' opacity='0.08'/%3E%3C/svg%3E");
-    pointer-events: none;
   }
 
-  /* carved input channel */
   .signup-stone input {
-    background: #8a847c;
-    border: none;
-    color: #2a2824;
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 1.3rem;
-    font-weight: 600;
+    background: #fffdf8;
+    border: 1px solid #e0d9cc;
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    font-size: 1.1rem;
     padding: 1rem 1.2rem;
-    border-radius: 2px 0 0 2px;
+    border-radius: 8px;
     outline: none;
     width: 260px;
-    text-shadow:
-      0 1px 0 rgba(255,255,255,0.15),
-      0 -1px 1px rgba(0,0,0,0.25);
-    box-shadow:
-      inset 0 4px 8px rgba(0,0,0,0.3),
-      inset 0 -1px 0 rgba(255,255,255,0.08),
-      inset 3px 0 6px rgba(0,0,0,0.15),
-      inset -2px 0 4px rgba(0,0,0,0.1);
-    transition: box-shadow 0.3s;
-    position: relative;
-    z-index: 1;
+    transition: border-color 0.3s, box-shadow 0.3s;
   }
   .signup-stone input:focus {
-    box-shadow:
-      inset 0 5px 10px rgba(0,0,0,0.35),
-      inset 0 -1px 0 rgba(255,255,255,0.08),
-      inset 3px 0 6px rgba(0,0,0,0.18),
-      inset -2px 0 4px rgba(0,0,0,0.12);
+    border-color: var(--warm);
+    box-shadow: 0 0 0 3px rgba(196,168,122,0.12);
   }
   .signup-stone input::placeholder {
-    color: #6e6960;
-    text-shadow: none;
-    font-weight: 400;
-    font-size: 0.95rem;
+    color: #b0a898;
   }
 
-  /* engraved button */
   .signup-stone button {
-    background: #9e9890;
+    background: var(--ink);
+    color: #fffdf8;
     border: none;
-    border-left: 1px solid rgba(0,0,0,0.12);
-    color: #3a3632;
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 1.2rem;
-    font-weight: 700;
-    padding: 1rem 1.8rem;
-    border-radius: 0 2px 2px 0;
+    font-family: 'Inter', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 1rem 2rem;
+    border-radius: 8px;
     cursor: pointer;
+    transition: all 0.2s;
     letter-spacing: 0.02em;
     white-space: nowrap;
-    text-shadow:
-      0 1px 0 rgba(255,255,255,0.18),
-      0 -1px 1px rgba(0,0,0,0.2);
-    box-shadow:
-      inset 0 1px 0 rgba(255,255,255,0.1);
-    transition: all 0.15s;
-    position: relative;
-    z-index: 1;
   }
   .signup-stone button:hover {
-    color: #2a2824;
-    text-shadow:
-      0 1px 0 rgba(255,255,255,0.22),
-      0 -1px 1px rgba(0,0,0,0.25);
+    background: #333;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   }
   .signup-stone button:active {
-    box-shadow:
-      inset 0 2px 4px rgba(0,0,0,0.2),
-      inset 0 -1px 0 rgba(255,255,255,0.05);
-    background: #938d85;
+    transform: translateY(0);
+    box-shadow: none;
   }
 
   .fine-print {
@@ -436,7 +388,7 @@
 
   <div id="signup-form">
     <div class="signup-stone">
-      <input type="tel" id="phone" placeholder="chisel your number here" autocomplete="tel">
+      <input type="tel" id="phone" placeholder="your phone number" autocomplete="tel">
       <button onclick="subscribe()">send me questions</button>
     </div>
     <div class="fine-print">One text per day. No spam. Unsubscribe anytime. Free for nao.</div>
@@ -512,7 +464,7 @@ async function subscribe() {
 
   const btn = document.querySelector('.signup-stone button');
   btn.disabled = true;
-  btn.textContent = 'carving...';
+  btn.textContent = 'sending...';
 
   try {
     const res = await fetch('https://subscribe-msg6fngvzq-uc.a.run.app', {
