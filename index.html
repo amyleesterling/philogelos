@@ -404,38 +404,32 @@
   <div class="origami-card">
     <div class="origami-bg">
       <svg viewBox="0 0 640 300" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-        <!-- base sheet -->
-        <polygon points="0,15 640,0 640,285 0,300" fill="#ede8df"/>
+        <!-- base sheet — straight rectangle -->
+        <rect x="0" y="0" width="640" height="300" fill="#ede8df"/>
         <!-- top-left corner fold -->
-        <polygon points="0,15 50,0 30,25" fill="#f5f1ea"/>
-        <polygon points="0,15 30,25 0,50" fill="#e3ded3"/>
-        <line x1="0" y1="15" x2="30" y2="25" stroke="#faf7f2" stroke-width="0.6" opacity="0.6"/>
-        <!-- top edge crease -->
-        <polygon points="50,0 590,0 580,12 60,18" fill="#f2ede5" opacity="0.4"/>
-        <line x1="30" y1="25" x2="610" y2="8" stroke="#faf7f2" stroke-width="0.7" opacity="0.5"/>
+        <polygon points="0,0 20,0 12,12 0,14" fill="#f5f1ea"/>
+        <line x1="0" y1="14" x2="20" y2="0" stroke="#faf7f2" stroke-width="0.5" opacity="0.5"/>
+        <!-- top edge highlight -->
+        <rect x="20" y="0" width="600" height="8" fill="#f2ede5" opacity="0.3"/>
+        <line x1="0" y1="0" x2="640" y2="0" stroke="#faf7f2" stroke-width="0.6" opacity="0.4"/>
         <!-- top-right corner fold -->
-        <polygon points="590,0 640,0 610,8" fill="#f5f1ea"/>
-        <polygon points="640,0 640,30 610,8" fill="#e0dbd0"/>
-        <!-- right edge folds -->
-        <polygon points="640,30 640,120 615,100 610,8" fill="#e5e0d5" opacity="0.5"/>
-        <polygon points="640,120 640,200 618,180 615,100" fill="#e8e3d9" opacity="0.4"/>
-        <line x1="610" y1="8" x2="618" y2="280" stroke="#d8d2c6" stroke-width="0.4" opacity="0.3"/>
+        <polygon points="620,0 640,0 640,14 628,12" fill="#f5f1ea"/>
+        <line x1="620" y1="0" x2="640" y2="14" stroke="#faf7f2" stroke-width="0.5" opacity="0.5"/>
+        <!-- right edge -->
+        <rect x="632" y="14" width="8" height="272" fill="#e5e0d5" opacity="0.4"/>
         <!-- bottom-right corner fold -->
-        <polygon points="640,285 640,250 618,270" fill="#ddd8cc"/>
-        <polygon points="618,270 640,285 590,300" fill="#e2ddd2" opacity="0.6"/>
-        <!-- bottom edge crease -->
-        <polygon points="60,290 580,275 590,300 50,300" fill="#e0dbd0" opacity="0.4"/>
-        <line x1="60" y1="290" x2="580" y2="275" stroke="#faf7f2" stroke-width="0.6" opacity="0.4"/>
+        <polygon points="640,286 640,300 620,300 628,288" fill="#ddd8cc"/>
+        <!-- bottom edge -->
+        <rect x="20" y="292" width="600" height="8" fill="#e0dbd0" opacity="0.3"/>
+        <line x1="0" y1="300" x2="640" y2="300" stroke="#d8d2c6" stroke-width="0.4" opacity="0.3"/>
         <!-- bottom-left corner fold -->
-        <polygon points="0,300 50,300 35,280" fill="#ddd8cc"/>
-        <polygon points="0,300 0,265 35,280" fill="#e5e0d5"/>
-        <!-- left edge folds -->
-        <polygon points="0,50 30,70 28,150 0,140" fill="#e3ded3" opacity="0.5"/>
-        <polygon points="0,140 28,150 32,230 0,220" fill="#e6e1d6" opacity="0.4"/>
-        <line x1="0" y1="50" x2="32" y2="230" stroke="#d5d0c4" stroke-width="0.4" opacity="0.3"/>
-        <!-- subtle diagonal fold across center -->
-        <line x1="100" y1="40" x2="540" y2="260" stroke="#ddd8cc" stroke-width="0.4" opacity="0.2"/>
-        <polygon points="100,40 350,150 200,180 30,70" fill="#f0ece4" opacity="0.15"/>
+        <polygon points="0,286 12,288 20,300 0,300" fill="#e5e0d5"/>
+        <!-- left edge -->
+        <rect x="0" y="14" width="8" height="272" fill="#e3ded3" opacity="0.4"/>
+        <!-- subtle diagonal crease -->
+        <line x1="80" y1="30" x2="560" y2="270" stroke="#ddd8cc" stroke-width="0.3" opacity="0.15"/>
+        <!-- center facet -->
+        <polygon points="160,60 480,50 440,200 140,210" fill="#f0ece4" opacity="0.12"/>
       </svg>
     </div>
     <div class="sample-label-wrap">
