@@ -162,26 +162,35 @@
   .signup input::placeholder { color: #c0b8a8; }
 
   .signup button {
-    background: url('subscribe_button.png') center/cover no-repeat;
+    position: relative;
     color: var(--ink);
     border: none;
+    background: none;
     font-family: 'Inter', sans-serif;
     font-size: 0.9rem;
     font-weight: 600;
-    padding: 0.9rem 2rem;
-    border-radius: 12px;
+    padding: 0;
     cursor: pointer;
     transition: all 0.3s;
     letter-spacing: 0.03em;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
+  }
+  .signup button svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+  }
+  .signup button span {
+    position: relative;
+    z-index: 1;
+    display: block;
+    padding: 0.9rem 2rem;
   }
   .signup button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    filter: brightness(1.03);
   }
 
   .fine-print {
@@ -278,7 +287,8 @@
     .step { flex: 0 1 30%; padding: 0.75rem 0.5rem; }
     .step-num { width: 72px; height: 72px; }
     .step-text { font-size: 0.72rem; }
-    .signup button { font-size: 0.8rem; padding: 0.9rem 1.5rem; }
+    .signup button { font-size: 0.8rem; }
+    .signup button span { padding: 0.8rem 1.5rem; }
   }
 </style>
 </head>
@@ -297,14 +307,34 @@
   <div id="signup-form">
     <div class="signup">
       <input type="tel" id="phone" placeholder="your phone number" autocomplete="tel">
-      <button onclick="subscribe()">send me questions</button>
+      <button onclick="subscribe()">
+        <svg viewBox="0 0 220 56" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+          <!-- main body -->
+          <polygon points="12,6 208,6 214,14 214,42 208,50 12,50 6,42 6,14" fill="#f5efe4" stroke="#ddd5c4" stroke-width="0.75"/>
+          <!-- top-left fold -->
+          <polygon points="0,0 24,0 12,6 6,14 0,0" fill="#ede7db" stroke="#ddd5c4" stroke-width="0.5"/>
+          <!-- top-right fold -->
+          <polygon points="220,0 196,0 208,6 214,14 220,0" fill="#ede7db" stroke="#ddd5c4" stroke-width="0.5"/>
+          <!-- bottom-left fold -->
+          <polygon points="0,56 24,56 12,50 6,42 0,56" fill="#e8e2d6" stroke="#ddd5c4" stroke-width="0.5"/>
+          <!-- bottom-right fold -->
+          <polygon points="220,56 196,56 208,50 214,42 220,56" fill="#e8e2d6" stroke="#ddd5c4" stroke-width="0.5"/>
+          <!-- subtle diagonal crease lines -->
+          <line x1="60" y1="6" x2="50" y2="28" stroke="#e8e2d6" stroke-width="0.5" opacity="0.6"/>
+          <line x1="160" y1="6" x2="170" y2="28" stroke="#e8e2d6" stroke-width="0.5" opacity="0.6"/>
+          <line x1="110" y1="6" x2="110" y2="14" stroke="#ede7db" stroke-width="0.5" opacity="0.4"/>
+          <!-- top highlight -->
+          <polygon points="12,6 208,6 200,12 20,12" fill="white" opacity="0.15"/>
+        </svg>
+        <span>send me questions</span>
+      </button>
     </div>
     <div class="fine-print">One text per day. No spam. Unsubscribe anytime. Free while we're small.</div>
   </div>
 
   <div class="success" id="success">
     <h2>You're in.</h2>
-    <p>Your first question arrives tomorrow morning.</p>
+    <p>Please confirm your phone number by responding to the text.</p>
   </div>
 
   <div class="how">
@@ -362,14 +392,40 @@ function newQuestion() {
   document.getElementById('sample-q').textContent = questions[idx];
 }
 
-function subscribe() {
-  const phone = document.getElementById('phone').value;
-  if (!phone || phone.length < 10) {
-    document.getElementById('phone').style.borderColor = '#ff4444';
+async function subscribe() {
+  const phoneInput = document.getElementById('phone');
+  const phone = phoneInput.value.trim();
+  if (!phone || phone.replace(/\D/g, '').length < 10) {
+    phoneInput.style.borderColor = '#ff4444';
     return;
   }
-  document.getElementById('signup-form').style.display = 'none';
-  document.getElementById('success').classList.add('show');
+
+  const btn = document.querySelector('.signup button');
+  const btnLabel = btn.querySelector('span');
+  btn.disabled = true;
+  btnLabel.textContent = 'sending...';
+
+  try {
+    const res = await fetch('https://us-central1-philogelos-app.cloudfunctions.net/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      document.getElementById('signup-form').style.display = 'none';
+      document.getElementById('success').classList.add('show');
+    } else {
+      btn.disabled = false;
+      btnLabel.textContent = 'send me questions';
+      phoneInput.style.borderColor = '#ff4444';
+    }
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'send me questions';
+    phoneInput.style.borderColor = '#ff4444';
+  }
 }
 
 newQuestion();
