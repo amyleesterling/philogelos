@@ -404,58 +404,61 @@
   <div class="origami-card">
     <div class="origami-bg">
       <svg viewBox="0 0 640 300" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-        <!-- base sheet — straight rectangle -->
-        <rect x="0" y="0" width="640" height="300" fill="#ede8df"/>
-        <!-- top-left corner fold -->
-        <polygon points="0,0 20,0 12,12 0,14" fill="#f5f1ea"/>
-        <line x1="0" y1="14" x2="20" y2="0" stroke="#faf7f2" stroke-width="0.5" opacity="0.5"/>
-        <!-- top edge highlight -->
-        <rect x="20" y="0" width="600" height="8" fill="#f2ede5" opacity="0.3"/>
-        <line x1="0" y1="0" x2="640" y2="0" stroke="#faf7f2" stroke-width="0.6" opacity="0.4"/>
+        <!-- base — warm cream to match logo -->
+        <rect x="0" y="0" width="640" height="300" fill="#e8e0d2"/>
+
+        <!-- top face — lighter, catching light -->
+        <rect x="12" y="0" width="616" height="10" fill="#f0e8da" opacity="0.6"/>
+        <line x1="0" y1="0" x2="640" y2="0" stroke="#f5ede0" stroke-width="1" opacity="0.6"/>
+
+        <!-- top-left corner fold — triangular tuck -->
+        <polygon points="0,0 24,0 14,14 0,16" fill="#f2ead8"/>
+        <polygon points="0,16 14,14 0,30" fill="#d8d0c0"/>
+        <line x1="0" y1="16" x2="24" y2="0" stroke="#f8f0e2" stroke-width="0.6" opacity="0.6"/>
+
         <!-- top-right corner fold -->
-        <polygon points="620,0 640,0 640,14 628,12" fill="#f5f1ea"/>
-        <line x1="620" y1="0" x2="640" y2="14" stroke="#faf7f2" stroke-width="0.5" opacity="0.5"/>
-        <!-- right edge -->
-        <rect x="632" y="14" width="8" height="272" fill="#e5e0d5" opacity="0.4"/>
-        <!-- bottom-right corner fold -->
-        <polygon points="640,286 640,300 620,300 628,288" fill="#ddd8cc"/>
+        <polygon points="616,0 640,0 640,16 626,14" fill="#f2ead8"/>
+        <polygon points="640,16 626,14 640,30" fill="#d8d0c0"/>
+        <line x1="616" y1="0" x2="640" y2="16" stroke="#f8f0e2" stroke-width="0.6" opacity="0.6"/>
+
+        <!-- left edge — shadow strip -->
+        <rect x="0" y="16" width="10" height="268" fill="#d5ccbc" opacity="0.5"/>
+        <line x1="10" y1="16" x2="10" y2="284" stroke="#cec4b4" stroke-width="0.4" opacity="0.3"/>
+
+        <!-- right edge — shadow strip -->
+        <rect x="630" y="16" width="10" height="268" fill="#d5ccbc" opacity="0.5"/>
+        <line x1="630" y1="16" x2="630" y2="284" stroke="#cec4b4" stroke-width="0.4" opacity="0.3"/>
+
         <!-- bottom edge -->
-        <rect x="20" y="292" width="600" height="8" fill="#e0dbd0" opacity="0.3"/>
-        <line x1="0" y1="300" x2="640" y2="300" stroke="#d8d2c6" stroke-width="0.4" opacity="0.3"/>
+        <rect x="12" y="290" width="616" height="10" fill="#d2cabc" opacity="0.5"/>
+        <line x1="0" y1="300" x2="640" y2="300" stroke="#c8c0b0" stroke-width="0.5" opacity="0.3"/>
+
         <!-- bottom-left corner fold -->
-        <polygon points="0,286 12,288 20,300 0,300" fill="#e5e0d5"/>
-        <!-- left edge -->
-        <rect x="0" y="14" width="8" height="272" fill="#e3ded3" opacity="0.4"/>
-        <!-- subtle diagonal crease -->
-        <line x1="80" y1="30" x2="560" y2="270" stroke="#ddd8cc" stroke-width="0.3" opacity="0.15"/>
-        <!-- center facet -->
-        <polygon points="160,60 480,50 440,200 140,210" fill="#f0ece4" opacity="0.12"/>
+        <polygon points="0,284 14,286 24,300 0,300" fill="#d8d0c0"/>
+        <polygon points="0,270 0,284 14,286" fill="#ddd5c5"/>
+
+        <!-- bottom-right corner fold -->
+        <polygon points="640,284 626,286 616,300 640,300" fill="#d8d0c0"/>
+        <polygon points="640,270 640,284 626,286" fill="#ddd5c5"/>
+
+        <!-- large diagonal crease — top-left to center -->
+        <line x1="14" y1="14" x2="320" y2="150" stroke="#d0c8b8" stroke-width="0.5" opacity="0.2"/>
+        <!-- upper-left lit facet -->
+        <polygon points="14,14 320,14 320,150" fill="#f0e8d8" opacity="0.1"/>
+        <!-- lower-right shadow facet -->
+        <polygon points="320,150 320,286 626,286" fill="#d5ccbc" opacity="0.08"/>
+
+        <!-- secondary crease — top-right to center -->
+        <line x1="626" y1="14" x2="320" y2="150" stroke="#d0c8b8" stroke-width="0.4" opacity="0.15"/>
+
+        <!-- highlight strip across top third -->
+        <rect x="40" y="40" width="560" height="2" fill="#f5ede0" opacity="0.15"/>
+
+        <!-- subtle inner shadow at edges -->
+        <rect x="10" y="10" width="620" height="280" rx="2" fill="none" stroke="#c8c0b0" stroke-width="0.5" opacity="0.15"/>
       </svg>
     </div>
-    <div class="sample-label-wrap">
-      <svg viewBox="0 0 200 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-        <!-- base sheet -->
-        <polygon points="0,6 200,0 200,34 0,40" fill="#ede8df"/>
-        <!-- top-left corner -->
-        <polygon points="0,6 12,0 8,8" fill="#f5f1ea"/>
-        <polygon points="0,6 8,8 0,14" fill="#e3ded3"/>
-        <!-- top edge -->
-        <polygon points="12,0 188,0 185,5 15,7" fill="#f2ede5" opacity="0.4"/>
-        <line x1="8" y1="8" x2="192" y2="3" stroke="#faf7f2" stroke-width="0.4" opacity="0.5"/>
-        <!-- top-right corner -->
-        <polygon points="188,0 200,0 192,3" fill="#f5f1ea"/>
-        <polygon points="200,0 200,10 192,3" fill="#e0dbd0"/>
-        <!-- bottom-right corner -->
-        <polygon points="200,34 200,28 194,32" fill="#ddd8cc"/>
-        <polygon points="194,32 200,34 190,40" fill="#e2ddd2" opacity="0.6"/>
-        <!-- bottom edge -->
-        <line x1="8" y1="36" x2="192" y2="32" stroke="#faf7f2" stroke-width="0.3" opacity="0.4"/>
-        <!-- bottom-left corner -->
-        <polygon points="0,40 10,40 6,35" fill="#ddd8cc"/>
-        <polygon points="0,40 0,32 6,35" fill="#e5e0d5"/>
-      </svg>
-      <div class="sample-label">Today's question</div>
-    </div>
+    <div class="sample-label">Today's question</div>
     <div class="sample">
     <div class="sample-q" id="sample-q"></div>
     <button class="new-q" onclick="newQuestion()">another one &rarr;</button>
@@ -481,41 +484,9 @@
   </div>
 
   <div id="signup-form">
-    <div class="signup-wrap">
-      <div class="origami-bg">
-        <svg viewBox="0 0 600 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-          <!-- base sheet — straight rectangle -->
-          <rect x="0" y="0" width="600" height="120" fill="#ede8df"/>
-          <!-- top-left corner fold -->
-          <polygon points="0,0 18,0 10,10 0,12" fill="#f5f1ea"/>
-          <line x1="0" y1="12" x2="18" y2="0" stroke="#faf7f2" stroke-width="0.5" opacity="0.5"/>
-          <!-- top edge highlight -->
-          <rect x="18" y="0" width="564" height="6" fill="#f2ede5" opacity="0.3"/>
-          <line x1="0" y1="0" x2="600" y2="0" stroke="#faf7f2" stroke-width="0.6" opacity="0.4"/>
-          <!-- top-right corner fold -->
-          <polygon points="582,0 600,0 600,12 590,10" fill="#f5f1ea"/>
-          <line x1="582" y1="0" x2="600" y2="12" stroke="#faf7f2" stroke-width="0.5" opacity="0.5"/>
-          <!-- right edge -->
-          <rect x="594" y="12" width="6" height="96" fill="#e5e0d5" opacity="0.4"/>
-          <!-- bottom-right corner fold -->
-          <polygon points="600,108 600,120 582,120 590,110" fill="#ddd8cc"/>
-          <!-- bottom edge -->
-          <rect x="18" y="114" width="564" height="6" fill="#e0dbd0" opacity="0.3"/>
-          <line x1="0" y1="120" x2="600" y2="120" stroke="#d8d2c6" stroke-width="0.4" opacity="0.3"/>
-          <!-- bottom-left corner fold -->
-          <polygon points="0,108 10,110 18,120 0,120" fill="#e5e0d5"/>
-          <!-- left edge -->
-          <rect x="0" y="12" width="6" height="96" fill="#e3ded3" opacity="0.4"/>
-          <!-- subtle diagonal crease -->
-          <line x1="80" y1="20" x2="520" y2="100" stroke="#ddd8cc" stroke-width="0.3" opacity="0.15"/>
-          <!-- center facet -->
-          <polygon points="150,30 420,25 380,80 130,85" fill="#f0ece4" opacity="0.15"/>
-        </svg>
-      </div>
-      <div class="signup-stone">
-        <input type="tel" id="phone" placeholder="your phone number" autocomplete="tel">
-        <button onclick="subscribe()">send me questions</button>
-      </div>
+    <div class="signup-stone">
+      <input type="tel" id="phone" placeholder="your phone number" autocomplete="tel">
+      <button onclick="subscribe()">send me questions</button>
     </div>
     <div class="fine-print">One text per day. No spam. Unsubscribe anytime. Free for nao.</div>
 
