@@ -614,7 +614,9 @@ async function shareToFB() {
 async function saveImage() {
   const canvas = await generateShareImage();
   const link = document.createElement('a');
-  link.download = 'ytho-question.png';
+  const words = document.getElementById('sample-q').textContent.toLowerCase().replace(/[^a-z\s]/g, '').split(/\s+/).filter(w => w.length > 4 && !['would','could','should','about','think','their','which','there','never','every','being','while'].includes(w));
+  const keyword = words[Math.floor(words.length / 2)] || 'daily';
+  link.download = 'ytho-question-' + keyword + '.png';
   link.href = canvas.toDataURL('image/png');
   link.click();
 }
