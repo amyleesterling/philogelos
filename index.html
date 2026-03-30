@@ -41,11 +41,11 @@
 
   body {
     background: var(--cream);
-    background-image: url('parchment3.png');
+    background-image: linear-gradient(rgba(50,55,65,0.17), rgba(50,55,65,0.17)), url('parchment3.png');
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
-    background-blend-mode: overlay;
+    background-blend-mode: normal, overlay;
     color: var(--ink);
     font-family: 'Inter', sans-serif;
     overflow-x: hidden;
@@ -67,7 +67,7 @@
 
   .logo-img {
     width: 100%;
-    max-width: 680px;
+    max-width: 420px;
     margin-bottom: 1rem;
     filter: drop-shadow(0 1px 1px rgba(0,0,0,0.2)) drop-shadow(0 0 0.5px rgba(0,0,0,0.15));
   }
@@ -87,27 +87,23 @@
     margin-bottom: 3.5rem;
   }
   .origami-card > .origami-bg {
-    position: absolute;
-    inset: -14px -18px;
-    z-index: 0;
-    overflow: visible;
-  }
-  .origami-card > .origami-bg svg {
-    width: 100%;
-    height: 100%;
+    display: none;
   }
 
-  /* ══════════ PAPER CARD ══════════ */
+  /* ══════════ SIGN CARD ══════════ */
   .sample {
-    background: transparent;
+    background: linear-gradient(175deg, #faf8f4 0%, #f5f1ea 40%, #f0ebe0 100%);
     border: none;
-    border-radius: 3px;
+    border-radius: 4px;
     padding: 2.5rem 2.5rem 2rem;
     margin-bottom: 0;
-    padding-bottom: 2rem;
     position: relative;
     z-index: 1;
-    box-shadow: none;
+    box-shadow:
+      0 2px 4px rgba(0,0,0,0.06),
+      0 6px 20px rgba(0,0,0,0.08),
+      0 1px 0 rgba(255,255,255,0.4) inset,
+      0 -1px 3px rgba(0,0,0,0.04) inset;
   }
   .sample::before {
     content: '';
@@ -139,15 +135,20 @@
     z-index: 0;
   }
   .sample-label {
-    position: relative;
-    z-index: 1;
-    display: block;
-    font-size: 0.75rem;
-    color: var(--ink-faint);
+    position: absolute;
+    top: -12px;
+    left: 24px;
+    z-index: 2;
+    display: inline-block;
+    font-size: 0.65rem;
+    color: #8a7e6e;
     letter-spacing: 0.2em;
     text-transform: uppercase;
-    text-align: left;
-    padding: 0;
+    background: #f0ebe0;
+    padding: 4px 14px;
+    border: 1px solid rgba(180,170,155,0.3);
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
   }
 
   .sample-q {
@@ -184,35 +185,29 @@
     align-items: center;
   }
   .share-btn {
-    background: #faf8f4;
-    border: 1px solid #e0d9cc;
-    border-bottom: 3px solid #d0c8b8;
+    background: transparent;
+    border: 1px solid rgba(180,170,155,0.3);
     border-radius: 8px;
     padding: 6px 12px;
     cursor: pointer;
     font-family: 'Inter', sans-serif;
     font-size: 0.78rem;
-    color: var(--ink-light);
+    color: #b0a898;
     display: flex;
     align-items: center;
     gap: 5px;
     transition: all 0.15s ease;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.06);
     position: relative;
     top: 0;
   }
   .share-btn:hover {
-    border-color: var(--warm);
-    border-bottom-color: #b8a890;
-    color: var(--ink);
-    top: -2px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    border-color: rgba(180,170,155,0.5);
+    color: var(--ink-light);
+    top: -1px;
   }
   .share-btn:active {
-    top: 2px;
-    border-bottom-width: 1px;
-    box-shadow: 0 0px 1px rgba(0,0,0,0.06);
-    background: #f3efe8;
+    top: 1px;
+    background: rgba(0,0,0,0.02);
   }
   .share-btn svg { width: 14px; height: 14px; fill: currentColor; }
 
@@ -237,15 +232,16 @@
 
   .signup-stone {
     display: flex;
-    gap: 0.5rem;
+    gap: 0.75rem;
     flex-wrap: wrap;
     justify-content: center;
     position: relative;
     z-index: 1;
+    margin-bottom: 1.2rem;
   }
 
   .signup-stone input {
-    background: #fffdf8;
+    background: #f5f1ea;
     border: 1px solid #e0d9cc;
     color: var(--ink);
     font-family: 'Inter', sans-serif;
@@ -484,8 +480,8 @@
         <rect x="10" y="10" width="620" height="280" rx="2" fill="none" stroke="#c8c0b0" stroke-width="0.4" opacity="0.12"/>
       </svg>
     </div>
-    <div class="sample-label">Today's question</div>
     <div class="sample">
+    <div class="sample-label">Today's question</div>
     <div class="sample-q" id="sample-q"></div>
     <button class="new-q" onclick="newQuestion()">another one &rarr;</button>
     <div class="share-row">
@@ -525,7 +521,7 @@
 
   <div class="how">
     <div class="step">
-      <img src="1_origami.png" alt="1" class="step-num">
+      <img src="1_origami_v2.png" alt="1" class="step-num">
       <div class="step-text">Wake up to a question you weren't expecting.</div>
     </div>
     <div class="step">
@@ -534,13 +530,17 @@
     </div>
     <div class="step">
       <img src="3_origami.png" alt="3" class="step-num">
-      <div class="step-text">Reply if you want. It becomes your journal.</div>
+      <div class="step-text">Reply if you want.</div>
     </div>
   </div>
 
   <div class="journal-note">
     <p>Answer if you wish — your answers become a journal over time, and <strong>Philogelos</strong> will occasionally write back.</p>
   </div>
+</div>
+
+<div style="text-align:center; margin-bottom: 1rem;">
+  <img src="socrates_sunnies.png" alt="Socrates with sunglasses" style="max-width: 180px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));">
 </div>
 
 <div class="footer">
@@ -552,7 +552,7 @@ const questions = [
   "If your coffee mug gained consciousness, what would it think about your morning routine?",
   "Do you think socks dream about their adventures when they're in the drawer?",
   "Is a pop tart a ravioli?",
-  "You ever rehearse an argument in the shower against someone who isn't there — and LOSE?",
+
   "Be honest: what percentage of your personality is stuff you saw someone cooler do first?",
   "If your life had a loading screen, what helpful tip would it show?",
   "You think your stomach has ever been genuinely proud of you?",
@@ -718,7 +718,7 @@ async function shareEmail() {
   const q = document.getElementById('sample-q').textContent;
   const subject = encodeURIComponent('y tho?');
   const body = encodeURIComponent(q + '\n\nMore at ytho.club');
-  window.open('mailto:?subject=' + subject + '&body=' + body, '_self');
+  window.location.href = 'mailto:?subject=' + subject + '&body=' + body;
 }
 
 async function shareToFB() {
