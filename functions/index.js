@@ -603,26 +603,34 @@ exports.slackBot = onRequest(
     const event = req.body?.event;
     if (!event) { res.status(200).send("no event"); return; }
 
-    // Channel allowlist
-    if (!ALLOWED_CHANNEL_IDS.has(event.channel)) {
-      console.log(`Ignoring event from channel ${event.channel} (not in allowlist)`);
-      res.status(200).send("channel not allowed");
-      return;
-    }
-
-    // Only handle app_mention events
-    if (event.type !== "app_mention") {
-      res.status(200).send("not a mention");
-      return;
-    }
-
-    // Dedup — Slack retries on timeout. Track event_id in Firestore.
+    // Dedup — Slack retries on timeout. Track event_id in Firestore. (all types)
     const eventId = req.body.event_id;
     if (eventId) {
       const seenRef = db.collection("slack_events_seen").doc(eventId);
       const seen = await seenRef.get();
       if (seen.exists) { res.status(200).send("duplicate"); return; }
       await seenRef.set({ at: admin.firestore.FieldValue.serverTimestamp() });
+    }
+
+    // Case A: a reviewer's plain-language reply inside a Guide review-card
+    // thread (in #citsci_feedback) is a natural-language correction.
+    if (event.type === "message" && event.channel === REVIEW_CHANNEL_ID &&
+        event.thread_ts && event.thread_ts !== event.ts &&
+        !event.bot_id && !event.subtype) {
+      res.status(200).send("ok");
+      try { await handleReviewComment(event, slackBotToken.value()); }
+      catch (err) { console.error("handleReviewComment error:", err); }
+      return;
+    }
+
+    // Case B: @-mentions in allow-listed channels (the existing bot).
+    if (!ALLOWED_CHANNEL_IDS.has(event.channel)) {
+      res.status(200).send("channel not allowed");
+      return;
+    }
+    if (event.type !== "app_mention") {
+      res.status(200).send("not a mention");
+      return;
     }
 
     // Ack Slack immediately (<3s), then process async
@@ -634,6 +642,28 @@ exports.slackBot = onRequest(
     }
   }
 );
+
+// A reviewer's thread reply to a Guide review card = a natural-language
+// correction. Attach it to that turn's guide_logs doc and acknowledge with 📝.
+async function handleReviewComment(event, botToken) {
+  const snap = await db.collection("guide_review_threads").doc(event.thread_ts).get();
+  if (!snap.exists) return; // not one of our review cards
+  const { logId } = snap.data() || {};
+  const text = (event.text || "").trim();
+  if (!text) return;
+
+  const note = { author: event.user || null, text: text.slice(0, 2000), ts: event.ts || null, at: Date.now() };
+  if (logId) {
+    await db.collection("guide_logs").doc(logId).set({
+      reviewerNotes: admin.firestore.FieldValue.arrayUnion(note),
+      reviewerCorrection: text.slice(0, 2000),   // latest reviewer note, convenient
+      reviewerCorrectedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+  }
+  await slackPost(botToken, "reactions.add", {
+    channel: event.channel, timestamp: event.ts, name: "memo",
+  }).catch(() => {});
+}
 
 // ──────────────────────────────────────────────────────────────────────────
 // caveProxy — path-through CORS-adding proxy for the CAVE AnnotationEngine.
@@ -1426,7 +1456,7 @@ async function postCorrectionReview(token, entry) {
       `*Q:* ${entry.message || "(question not logged)"}`,
       `*Bot said:* ${(entry.reply || "(no reply logged)").slice(0, 700)}`,
       entry.correction ? `*User's correction:* ${entry.correction}` : "_(no correction text supplied)_",
-      mentions ? `${mentions} does this match the docs? React :white_check_mark: to approve the fix.` : "",
+      `${mentions ? mentions + " " : ""}Reply in this thread with the right answer, or react :white_check_mark: if the bot was actually correct.`,
     ].filter(Boolean);
     const text = lines.join("\n");
 
@@ -1436,7 +1466,19 @@ async function postCorrectionReview(token, entry) {
       await slackPost(token, "conversations.join", { channel });
       res = await slackPost(token, "chat.postMessage", { channel, text, unfurl_links: false });
     }
-    if (!res.ok) console.error("[guide] slack post failed:", res.error);
+    if (!res.ok) { console.error("[guide] slack post failed:", res.error); return; }
+
+    // Map the card's thread ts → this turn, so a reviewer's thread reply becomes
+    // a natural-language correction on the right guide_logs doc.
+    if (res.ts) {
+      try {
+        await db.collection("guide_review_threads").doc(res.ts).set({
+          logId: entry.logId || null,
+          message: entry.message || null,
+          at: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch (e) { console.error("[guide] thread map write:", e); }
+    }
   } catch (e) {
     console.error("[guide] postCorrectionReview error:", e);
   }
@@ -1496,6 +1538,7 @@ exports.guideFeedback = onRequest(
       // A downvote → route to Slack #citsci_feedback for reviewer signoff.
       if (verdict === "down") {
         await postCorrectionReview(slackBotToken.value(), {
+          logId: (logId && typeof logId === "string") ? logId : null,
           message: logData.message || null,
           reply: (typeof reply === "string" ? reply : null) || logData.reply || null,
           correction: corr || null,
