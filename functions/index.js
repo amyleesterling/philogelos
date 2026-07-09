@@ -1359,17 +1359,23 @@ exports.guideAssistant = onRequest(
 // ──────────────────────────────────────────────────────────────────────
 
 // ── Slack correction-review routing ────────────────────────────────────
+// If REVIEW_CHANNEL_ID is set (the C… id from the channel's About / URL), it's
+// used directly — no channels:read scope or lookup needed, just chat:write and
+// the bot being a member. Otherwise we fall back to looking it up by name.
+const REVIEW_CHANNEL_ID = "C0BG5CN71C3";
 const REVIEW_CHANNEL_NAME = "citsci_feedback";
 const REVIEW_MENTION_HANDLES = ["amy", "celia", "sorek.m"];
 let _reviewChannelId = null;
 let _reviewMentionIds = null;
 
 async function resolveReviewChannel(token) {
+  if (REVIEW_CHANNEL_ID) return REVIEW_CHANNEL_ID;
   if (_reviewChannelId) return _reviewChannelId;
   let cursor;
   for (let i = 0; i < 12; i++) {
+    // public_channel only — avoids the groups:read scope requirement.
     const r = await slackPost(token, "conversations.list", {
-      types: "public_channel,private_channel", exclude_archived: true, limit: 1000, cursor,
+      types: "public_channel", exclude_archived: true, limit: 1000, cursor,
     });
     if (!r.ok) { console.error("[guide] conversations.list:", r.error); break; }
     const match = (r.channels || []).find((c) => c.name === REVIEW_CHANNEL_NAME);
