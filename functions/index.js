@@ -1364,6 +1364,9 @@ exports.guideAssistant = onRequest(
 // the bot being a member. Otherwise we fall back to looking it up by name.
 const REVIEW_CHANNEL_ID = "C0BG5CN71C3";
 const REVIEW_CHANNEL_NAME = "citsci_feedback";
+// Hardcoded member IDs (amy, celia, marissa/sorek.m) so @-mentions resolve to
+// live pings without the users:read scope. Falls back to name lookup if empty.
+const REVIEW_MENTION_IDS = ["U02FH1DRC", "U033NHWDE", "U033TSX9A"];
 const REVIEW_MENTION_HANDLES = ["amy", "celia", "sorek.m"];
 let _reviewChannelId = null;
 let _reviewMentionIds = null;
@@ -1387,6 +1390,7 @@ async function resolveReviewChannel(token) {
 }
 
 async function resolveReviewMentionIds(token) {
+  if (REVIEW_MENTION_IDS.length) return REVIEW_MENTION_IDS;
   if (_reviewMentionIds) return _reviewMentionIds;
   const want = REVIEW_MENTION_HANDLES.map((h) => h.toLowerCase());
   const found = {};
