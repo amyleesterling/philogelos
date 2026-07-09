@@ -872,6 +872,44 @@ const GUIDE_TOOLS = [
     },
   },
   {
+    name: "spotlight",
+    description: "Ring a specific on-screen control with a pulsing glow (and an " +
+      "optional short note) so the user can SEE exactly where it is. Use this for " +
+      "\"where is the X button / how do I find X\" questions — pointing beats " +
+      "describing. Read-only; it only highlights, it never clicks.",
+    input_schema: {
+      type: "object",
+      properties: {
+        target: {
+          type: "string",
+          description: "Which control to highlight.",
+          enum: [
+            "pyrLogo", "shareButton", "datasetButton", "askButton", "commandPalette",
+            "profileButton", "splitTool", "mergeTool", "findPathTool", "leaderboard",
+            "cellLibrary", "batchProcessor", "secondOpinion", "activityFeed",
+            "notifications", "chat", "settings", "weeklyRecap", "brainQuest",
+          ],
+        },
+        note: { type: "string", description: "Optional short label shown beside the control (<= 120 chars)." },
+      },
+      required: ["target"],
+    },
+  },
+  {
+    name: "startTutorial",
+    description: "Launch a guided walkthrough: 1-3 are the proofreading tutorials, " +
+      "4 is the general Site Tour of the interface. Use when the user asks for a " +
+      "tour, a walkthrough, or 'show me around'.",
+    input_schema: {
+      type: "object",
+      properties: {
+        id: { type: "integer", enum: [1, 2, 3, 4], description: "1-3 tutorials, 4 = Site Tour." },
+        step: { type: "integer", description: "Optional starting step (default 0)." },
+      },
+      required: ["id"],
+    },
+  },
+  {
     name: "explainOnly",
     description: "Use when a plain text answer is enough and no UI action is needed. " +
       "Always prefer this over guessing an action.",
@@ -901,6 +939,8 @@ THE UI (what your tools map to)
 - Tools (setToolMode): merge (keybind M) = join two segments that are one neuron; split/multicut (keybind C) = cut apart segments wrongly joined; findPath (keybind F) = trace the path between two points. 'none' clears.
 - Command palette (openCommandPalette): Ctrl+K, the searchable list of everything the app can do. If unsure which panel/action fits, open it with a query.
 - goToSegment: jump the camera to a segment by its root id and make it visible.
+- spotlight: for "where is X / how do I find the X button" questions, glow the actual control so the user can SEE it — pointing beats describing. Known targets: pyrLogo, shareButton, datasetButton, askButton, commandPalette, profileButton, splitTool, mergeTool, findPathTool, leaderboard, cellLibrary, batchProcessor, secondOpinion (request a second opinion), activityFeed, notifications, chat, settings, weeklyRecap, brainQuest. Prefer spotlight over openPanel when the user asks WHERE something is (show them the button); use openPanel when they just want to GET there. You can add a short note. If a control isn't in the target list, explain in words instead.
+- startTutorial: launch a walkthrough when asked for a tour or "show me around" — 1-3 are proofreading tutorials, 4 is the general Site Tour.
 
 PROOFREADING HOW-TOs
 - Merge vs split: if a neuron is broken into pieces, MERGE them. If two different neurons are stuck together, SPLIT (multicut) them. When unsure, look before you edit.
@@ -908,14 +948,19 @@ PROOFREADING HOW-TOs
 - Marking a cell complete / requesting a second opinion are human actions in the Cell Library; you can open the panel and explain, but the user clicks.
 
 TROUBLESHOOTING FAQ
-- "My edits aren't showing" / "why don't I see my changes": usually the materialized data version is behind the latest. Explain that materialization lags live edits; their proofreading is saved even if the map view hasn't caught up. Check materializationVersion vs latestVersion in context if present.
+- "My edits aren't showing" / "why don't I see my changes": their proofreading IS saved — reassure them first. The 3D meshes update live, but materialized queries (cell tables and some views) use the latest materialized snapshot, which lags live edits. If appContext.materialization is present, be SPECIFIC: the newest materialized version is {latestVersion}, timestamped {timestamp} (~{ageMinutes} minutes old); any edit made after that appears at the next materialization run, not immediately. If it's not present, give the general explanation.
 - "Why is my segment gray": the mesh may still be loading, or it isn't in the visible set. Offer goToSegment.
 - Login / CAVE auth issues: they must be logged in for edits to save; point them to settings or the login flow.
 
 CONTEXT
-- The current app state is provided as APP CONTEXT below. Ground answers in it (dataset, whether logged in, which panels are open, current tool). Answer in the user's language if 'lang' is set.`;
+- The current app state is provided as APP CONTEXT below. Ground answers in it (dataset, whether logged in, which panels are open, current tool).
 
-async function callGuideClaude(anthropicApiKey, messages, systemPrompt) {
+LANGUAGE
+- appContext.lang holds the user's browser locale (e.g. 'en-US', 'es', 'fr', 'de', 'ja', 'zh-CN', 'ko', 'pt-BR'). Write your reply in THAT language. For any 'en...' locale, reply in English.
+- If the user clearly writes in a different language than lang, follow the language they actually wrote in.
+- Keep proper nouns as-is (EyeWire II, CAVE, neuroglancer, segment ids). Translate everything else naturally; don't sound machine-translated.`;
+
+async function callGuideClaude(anthropicApiKey, messages, systemBlocks) {
   const collectedActions = [];
   let finalText = "";
   let iteration = 0;
@@ -934,8 +979,8 @@ async function callGuideClaude(anthropicApiKey, messages, systemPrompt) {
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
         max_tokens: 1024,
-        // Prompt-cache the KB so it is not re-billed each turn.
-        system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
+        // systemBlocks: [ cached KB + live UI reference, uncached per-request appContext ].
+        system: systemBlocks,
         tools: GUIDE_TOOLS,
         messages: convo,
       }),
@@ -975,6 +1020,168 @@ async function callGuideClaude(anthropicApiKey, messages, systemPrompt) {
   return { reply: finalText || "Done.", actions: collectedActions };
 }
 
+// ── Streaming variant ──────────────────────────────────────────────────
+// Same tool-use loop as callGuideClaude, but streams the model's text deltas
+// out via onText(delta) as they arrive, so the dock renders token-by-token.
+
+// One streamed API turn. Parses Anthropic's SSE, forwards text deltas to
+// onText, and reconstructs the full content blocks (needed to continue a
+// tool-use loop). Returns { stopReason, content, text }.
+async function streamGuideOnce(anthropicApiKey, systemBlocks, convo, onText) {
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": anthropicApiKey,
+      "anthropic-version": "2023-06-01",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 1024,
+      system: systemBlocks,
+      tools: GUIDE_TOOLS,
+      messages: convo,
+      stream: true,
+    }),
+  });
+  if (!resp.ok) {
+    const err = await resp.text().catch(() => "");
+    throw new Error(`Claude API error: ${err || resp.statusText}`);
+  }
+
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  const blocks = [];       // reconstructed content blocks, by index
+  const jsonAccum = {};    // index -> partial tool-input JSON string
+  let text = "";
+  let stopReason = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let sep;
+    while ((sep = buf.indexOf("\n\n")) >= 0) {
+      const rawEvent = buf.slice(0, sep);
+      buf = buf.slice(sep + 2);
+      const dataLine = rawEvent.split("\n").find((l) => l.startsWith("data:"));
+      if (!dataLine) continue;
+      let evt;
+      try { evt = JSON.parse(dataLine.slice(5).trim()); } catch { continue; }
+
+      if (evt.type === "content_block_start") {
+        blocks[evt.index] = { ...evt.content_block };
+        if (evt.content_block.type === "tool_use") jsonAccum[evt.index] = "";
+      } else if (evt.type === "content_block_delta") {
+        if (evt.delta.type === "text_delta") {
+          text += evt.delta.text;
+          if (blocks[evt.index]) blocks[evt.index].text = (blocks[evt.index].text || "") + evt.delta.text;
+          try { onText(evt.delta.text); } catch { /* client gone */ }
+        } else if (evt.delta.type === "input_json_delta") {
+          jsonAccum[evt.index] = (jsonAccum[evt.index] || "") + evt.delta.partial_json;
+        }
+      } else if (evt.type === "content_block_stop") {
+        const b = blocks[evt.index];
+        if (b && b.type === "tool_use") {
+          try { b.input = JSON.parse(jsonAccum[evt.index] || "{}"); } catch { b.input = {}; }
+        }
+      } else if (evt.type === "message_delta") {
+        if (evt.delta && evt.delta.stop_reason) stopReason = evt.delta.stop_reason;
+      }
+    }
+  }
+  return { stopReason, content: blocks.filter(Boolean), text };
+}
+
+async function callGuideClaudeStream(anthropicApiKey, systemBlocks, messages, onText) {
+  const collectedActions = [];
+  let finalText = "";
+  let iteration = 0;
+  const convo = [...messages];
+
+  while (iteration < 4) {
+    iteration++;
+    const { stopReason, content, text } = await streamGuideOnce(anthropicApiKey, systemBlocks, convo, onText);
+    if (text) finalText = text; // final turn's text is the answer
+
+    if (stopReason !== "tool_use") break;
+
+    convo.push({ role: "assistant", content });
+    const toolResults = [];
+    for (const block of content) {
+      if (block.type !== "tool_use") continue;
+      if (GUIDE_TOOL_NAMES.has(block.name) && block.name !== "explainOnly") {
+        collectedActions.push({ name: block.name, args: block.input || {} });
+      }
+      toolResults.push({
+        type: "tool_result",
+        tool_use_id: block.id,
+        content: "Queued. It will run in the user's browser.",
+      });
+    }
+    convo.push({ role: "user", content: toolResults });
+  }
+
+  return { reply: finalText || "Done.", actions: collectedActions };
+}
+
+// Log every turn to Firestore so we can see what proofreaders ask and, crucially,
+// which questions produced NO action (hadAction=false) — those are the unmet needs
+// that tell us what new tools/actions to build. Fire-and-forget: never blocks or
+// fails the response. Query in the Firebase console, e.g. collection `guide_logs`
+// filtered by hadAction == false, or grouped by actionNames.
+async function writeGuideLog(entry, ref) {
+  try {
+    const r = ref || db.collection("guide_logs").doc();
+    // Firestore rejects `undefined`; every field is coalesced to a concrete value.
+    await r.set({ at: admin.firestore.FieldValue.serverTimestamp(), ...entry });
+  } catch (e) {
+    console.error("[guide] log write failed:", e);
+  }
+}
+
+// ── Rate limiting ──────────────────────────────────────────────────────
+// Protects the public endpoint and the Anthropic key. Hard per-IP caps ALWAYS
+// apply; logged-in users (a soft signal from appContext) get a more generous
+// tier, but even that tier is safe. One Firestore doc per IP holds a rolling
+// 1-minute and 1-day window, so docs don't accumulate.
+const RL_TIERS = {
+  anon:   { perMin: 8,  perDay: 60 },
+  authed: { perMin: 20, perDay: 400 },
+};
+
+function clientIp(req) {
+  const xff = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  return xff || req.ip || "unknown";
+}
+
+// Atomically check+increment the per-IP windows. Returns {ok} or {ok:false,scope}.
+async function rateLimit(req, loggedIn, prefix = "a") {
+  const ip = clientIp(req);
+  const tier = loggedIn ? RL_TIERS.authed : RL_TIERS.anon;
+  const ref = db.collection("guide_ratelimit").doc(`${prefix}:${ip}`);
+  try {
+    return await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      const now = Date.now();
+      const d = snap.exists ? snap.data() : {};
+      let minStart = d.minStart || 0, minCount = d.minCount || 0;
+      let dayStart = d.dayStart || 0, dayCount = d.dayCount || 0;
+      if (now - minStart >= 60000) { minStart = now; minCount = 0; }
+      if (now - dayStart >= 86400000) { dayStart = now; dayCount = 0; }
+      if (minCount >= tier.perMin) return { ok: false, scope: "minute" };
+      if (dayCount >= tier.perDay) return { ok: false, scope: "day" };
+      tx.set(ref, { minStart, minCount: minCount + 1, dayStart, dayCount: dayCount + 1 });
+      return { ok: true };
+    });
+  } catch (e) {
+    // Never let a rate-limit hiccup take down the endpoint — fail open.
+    console.error("[guide] rateLimit error:", e);
+    return { ok: true };
+  }
+}
+
 // Reflect only trusted origins: the App Engine deploys, GitHub Pages, and localhost dev.
 const GUIDE_ALLOWED_ORIGIN_RE =
   /^https:\/\/[a-z0-9-]+-dot-brain-wire-dot-seung-lab\.ue\.r\.appspot\.com$|^https:\/\/amyleesterling\.github\.io$|^http:\/\/(localhost|127\.0\.0\.1):(8080|3000)$/;
@@ -999,16 +1206,37 @@ exports.guideAssistant = onRequest(
     if (!originOk) { res.status(403).json({ error: "origin not allowed" }); return; }
     if (req.method !== "POST") { res.status(405).json({ error: "POST only" }); return; }
 
-    const { message, history, appContext } = req.body || {};
+    const { message, history, appContext, uiReference } = req.body || {};
     if (!message || typeof message !== "string") {
       res.status(400).json({ error: "missing message" });
       return;
     }
 
+    const rl = await rateLimit(req, !!(appContext && appContext.loggedIn), "ask");
+    if (!rl.ok) {
+      res.status(429).json({
+        error: "rate_limited",
+        reply: rl.scope === "day"
+          ? "You've reached today's limit for the Guide — please come back tomorrow. 💙"
+          : "You're sending messages a little fast. Give me a few seconds and try again.",
+      });
+      return;
+    }
+
     try {
-      const systemPrompt = GUIDE_SYSTEM_PROMPT +
-        "\n\nAPP CONTEXT (current state):\n" +
-        JSON.stringify(appContext || {}, null, 0);
+      // Cached block: stable voice/safety/how-tos + the live UI reference the
+      // client generated from the running app (buttons, keybindings, commands).
+      // It is authoritative for exact facts, so the hand-written UI prose can
+      // never silently drift out of date.
+      const cachedText = GUIDE_SYSTEM_PROMPT +
+        (uiReference && typeof uiReference === "string"
+          ? "\n\nLIVE UI REFERENCE (generated from the running app — trust this over the prose above for exact button names, keyboard shortcuts, and available commands):\n" +
+            uiReference.slice(0, 8000)
+          : "");
+      const systemBlocks = [
+        { type: "text", text: cachedText, cache_control: { type: "ephemeral" } },
+        { type: "text", text: "APP CONTEXT (current state):\n" + JSON.stringify(appContext || {}, null, 0) },
+      ];
 
       const messages = [];
       if (Array.isArray(history)) {
@@ -1022,11 +1250,252 @@ exports.guideAssistant = onRequest(
         messages.push({ role: "user", content: message });
       }
 
-      const result = await callGuideClaude(anthropicKey.value(), messages, systemPrompt);
-      res.json(result);
+      // ── Streaming path (NDJSON): the dock renders text as it arrives ──
+      if (req.body && req.body.stream) {
+        res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
+        res.setHeader("Cache-Control", "no-cache, no-transform");
+        res.setHeader("X-Accel-Buffering", "no");
+        if (typeof res.flushHeaders === "function") res.flushHeaders();
+        const send = (obj) => { try { res.write(JSON.stringify(obj) + "\n"); } catch { /* client gone */ } };
+
+        const logRef = db.collection("guide_logs").doc();
+        try {
+          const result = await callGuideClaudeStream(
+            anthropicKey.value(), systemBlocks, messages,
+            (delta) => send({ type: "text", delta }),
+          );
+          send({ type: "done", reply: result.reply, actions: result.actions, logId: logRef.id });
+          res.end();
+
+          const ctx = appContext || {};
+          const actionNames = (result.actions || []).map((a) => a && a.name).filter(Boolean);
+          await writeGuideLog({
+            message,
+            reply: result.reply || null,
+            actions: result.actions || [],
+            actionNames,
+            hadAction: actionNames.length > 0,
+            dataset: ctx.dataset || null,
+            loggedIn: ctx.loggedIn ?? null,
+            userName: ctx.userName || null,
+            toolMode: ctx.toolMode || null,
+            openPanels: Array.isArray(ctx.openPanels) ? ctx.openPanels : [],
+            lang: ctx.lang || null,
+            turnCount: Array.isArray(history) ? history.length + 1 : 1,
+            feedback: null,
+            correction: null,
+            error: null,
+            streamed: true,
+          }, logRef);
+        } catch (err) {
+          console.error("guideAssistant stream error:", err);
+          send({ type: "error", reply: "The guide had trouble just now. Please try again." });
+          res.end();
+          await writeGuideLog({
+            message, reply: null, actions: [], actionNames: [], hadAction: false,
+            error: String((err && err.message) || err), streamed: true,
+          });
+        }
+        return;
+      }
+
+      const result = await callGuideClaude(anthropicKey.value(), messages, systemBlocks);
+
+      // Pre-create the log doc ref so we can hand its id to the client; feedback
+      // (thumbs / corrections) later merges into this same doc.
+      const logRef = db.collection("guide_logs").doc();
+
+      // Respond first (with the log id), then write the log — no user-facing
+      // latency, but the write still completes before the instance freezes.
+      res.json({ ...result, logId: logRef.id });
+
+      const ctx = appContext || {};
+      const actions = Array.isArray(result.actions) ? result.actions : [];
+      const actionNames = actions.map((a) => a && a.name).filter(Boolean);
+      await writeGuideLog({
+        message,
+        reply: result.reply || null,
+        actions,
+        actionNames,             // e.g. ["openPanel"] — easy to group/filter
+        hadAction: actionNames.length > 0,  // false == the bot had no tool for it
+        dataset: ctx.dataset || null,
+        loggedIn: ctx.loggedIn ?? null,
+        userName: ctx.userName || null,
+        toolMode: ctx.toolMode || null,
+        openPanels: Array.isArray(ctx.openPanels) ? ctx.openPanels : [],
+        lang: ctx.lang || null,
+        turnCount: Array.isArray(history) ? history.length + 1 : 1,
+        feedback: null,          // set later by guideFeedback: 'up' | 'down'
+        correction: null,        // user-supplied correct answer, when given
+        error: null,
+      }, logRef);
     } catch (err) {
       console.error("guideAssistant error:", err);
       res.status(500).json({ error: "assistant temporarily unavailable" });
+      // Log failed turns too — a question that errors is also a signal.
+      await writeGuideLog({
+        message,
+        reply: null,
+        actions: [],
+        actionNames: [],
+        hadAction: false,
+        error: String((err && err.message) || err),
+      });
+    }
+  },
+);
+
+// ──────────────────────────────────────────────────────────────────────
+// guideFeedback — records a 👍/👎 (and optional correction) for a Guide turn.
+// Merges into the guide_logs doc identified by logId, so a downvote and the
+// user's correct answer sit right next to the question that produced them —
+// that's the eval/correction dataset. Falls back to a standalone doc if the
+// client has no logId.
+//
+// POST body: { logId?: string, verdict: 'up'|'down', correction?: string, reply?: string }
+//
+// On a downvote it also posts a review card to Slack #citsci_feedback, tagging
+// the reviewers, so corrections get eyes (and eventually a ✅ signoff).
+// ──────────────────────────────────────────────────────────────────────
+
+// ── Slack correction-review routing ────────────────────────────────────
+const REVIEW_CHANNEL_NAME = "citsci_feedback";
+const REVIEW_MENTION_HANDLES = ["amy", "celia", "sorek.m"];
+let _reviewChannelId = null;
+let _reviewMentionIds = null;
+
+async function resolveReviewChannel(token) {
+  if (_reviewChannelId) return _reviewChannelId;
+  let cursor;
+  for (let i = 0; i < 12; i++) {
+    const r = await slackPost(token, "conversations.list", {
+      types: "public_channel,private_channel", exclude_archived: true, limit: 1000, cursor,
+    });
+    if (!r.ok) { console.error("[guide] conversations.list:", r.error); break; }
+    const match = (r.channels || []).find((c) => c.name === REVIEW_CHANNEL_NAME);
+    if (match) { _reviewChannelId = match.id; return _reviewChannelId; }
+    cursor = r.response_metadata && r.response_metadata.next_cursor;
+    if (!cursor) break;
+  }
+  return null;
+}
+
+async function resolveReviewMentionIds(token) {
+  if (_reviewMentionIds) return _reviewMentionIds;
+  const want = REVIEW_MENTION_HANDLES.map((h) => h.toLowerCase());
+  const found = {};
+  let cursor;
+  for (let i = 0; i < 20; i++) {
+    const r = await slackPost(token, "users.list", { limit: 200, cursor });
+    if (!r.ok) { console.error("[guide] users.list:", r.error); break; }
+    for (const m of r.members || []) {
+      const name = (m.name || "").toLowerCase();
+      const disp = ((m.profile && m.profile.display_name) || "").toLowerCase();
+      const real = ((m.profile && m.profile.real_name) || "").toLowerCase();
+      for (const h of want) {
+        if (!found[h] && (name === h || disp === h || real === h)) found[h] = m.id;
+      }
+    }
+    cursor = r.response_metadata && r.response_metadata.next_cursor;
+    if (!cursor || Object.keys(found).length === want.length) break;
+  }
+  _reviewMentionIds = want.map((h) => found[h]).filter(Boolean);
+  return _reviewMentionIds;
+}
+
+async function postCorrectionReview(token, entry) {
+  try {
+    const channel = await resolveReviewChannel(token);
+    if (!channel) { console.error("[guide] review channel not found"); return; }
+    const mentionIds = await resolveReviewMentionIds(token);
+    const mentions = mentionIds.map((id) => `<@${id}>`).join(" ");
+
+    const nonEnglish = entry.lang && !/^en/i.test(entry.lang);
+    const lines = [
+      `:mag: *Guide answer flagged as wrong*  —  dataset: ${entry.dataset || "?"}${nonEnglish ? `  ·  lang: ${entry.lang}` : ""}`,
+      `*Q:* ${entry.message || "(question not logged)"}`,
+      `*Bot said:* ${(entry.reply || "(no reply logged)").slice(0, 700)}`,
+      entry.correction ? `*User's correction:* ${entry.correction}` : "_(no correction text supplied)_",
+      mentions ? `${mentions} — does this match the docs? React :white_check_mark: to approve the fix.` : "",
+    ].filter(Boolean);
+    const text = lines.join("\n");
+
+    let res = await slackPost(token, "chat.postMessage", { channel, text, unfurl_links: false });
+    // Public channel the bot hasn't joined yet → join and retry once.
+    if (!res.ok && res.error === "not_in_channel") {
+      await slackPost(token, "conversations.join", { channel });
+      res = await slackPost(token, "chat.postMessage", { channel, text, unfurl_links: false });
+    }
+    if (!res.ok) console.error("[guide] slack post failed:", res.error);
+  } catch (e) {
+    console.error("[guide] postCorrectionReview error:", e);
+  }
+}
+
+exports.guideFeedback = onRequest(
+  { region: "us-central1", cors: false, invoker: "public", maxInstances: 10, secrets: [slackBotToken] },
+  async (req, res) => {
+    const origin = req.get("origin") || "";
+    const originOk = GUIDE_ALLOWED_ORIGIN_RE.test(origin);
+    if (originOk) { res.set("Access-Control-Allow-Origin", origin); res.set("Vary", "Origin"); }
+
+    if (req.method === "OPTIONS") {
+      res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+      res.set("Access-Control-Allow-Headers", "Content-Type");
+      res.set("Access-Control-Max-Age", "3600");
+      res.status(204).send("");
+      return;
+    }
+    if (!originOk) { res.status(403).json({ error: "origin not allowed" }); return; }
+    if (req.method !== "POST") { res.status(405).json({ error: "POST only" }); return; }
+
+    const { logId, verdict, correction, reply } = req.body || {};
+    if (verdict !== "up" && verdict !== "down") {
+      res.status(400).json({ error: "verdict must be 'up' or 'down'" });
+      return;
+    }
+
+    // Light per-IP cap — feedback is cheap, but stop spam.
+    const fbRl = await rateLimit(req, true, "fb");
+    if (!fbRl.ok) { res.status(429).json({ error: "rate_limited" }); return; }
+    const corr = typeof correction === "string" ? correction.trim().slice(0, 2000) : "";
+
+    try {
+      const payload = {
+        feedback: verdict,
+        correction: corr || null,
+        feedbackAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+      let logData = {};
+      if (logId && typeof logId === "string") {
+        const ref = db.collection("guide_logs").doc(logId);
+        // Read the turn's context (question/dataset/lang) before merging feedback.
+        const snap = await ref.get();
+        if (snap.exists) logData = snap.data() || {};
+        await ref.set(payload, { merge: true });
+      } else {
+        // No log id (older turn / race) — keep a self-contained record.
+        await db.collection("guide_feedback").add({
+          ...payload,
+          reply: typeof reply === "string" ? reply.slice(0, 4000) : null,
+          at: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+      res.json({ ok: true });
+
+      // A downvote → route to Slack #citsci_feedback for reviewer signoff.
+      if (verdict === "down") {
+        await postCorrectionReview(slackBotToken.value(), {
+          message: logData.message || null,
+          reply: (typeof reply === "string" ? reply : null) || logData.reply || null,
+          correction: corr || null,
+          dataset: logData.dataset || null,
+          lang: logData.lang || null,
+        });
+      }
+    } catch (err) {
+      console.error("guideFeedback error:", err);
+      if (!res.headersSent) res.status(500).json({ error: "could not record feedback" });
     }
   },
 );
