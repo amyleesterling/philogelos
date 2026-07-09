@@ -1418,11 +1418,11 @@ async function postCorrectionReview(token, entry) {
 
     const nonEnglish = entry.lang && !/^en/i.test(entry.lang);
     const lines = [
-      `:mag: *Guide answer flagged as wrong*  —  dataset: ${entry.dataset || "?"}${nonEnglish ? `  ·  lang: ${entry.lang}` : ""}`,
+      `:mag: *Guide answer flagged as wrong* (dataset: ${entry.dataset || "?"}${nonEnglish ? `, lang: ${entry.lang}` : ""})`,
       `*Q:* ${entry.message || "(question not logged)"}`,
       `*Bot said:* ${(entry.reply || "(no reply logged)").slice(0, 700)}`,
       entry.correction ? `*User's correction:* ${entry.correction}` : "_(no correction text supplied)_",
-      mentions ? `${mentions} — does this match the docs? React :white_check_mark: to approve the fix.` : "",
+      mentions ? `${mentions} does this match the docs? React :white_check_mark: to approve the fix.` : "",
     ].filter(Boolean);
     const text = lines.join("\n");
 
