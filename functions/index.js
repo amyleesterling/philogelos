@@ -613,8 +613,11 @@ exports.slackBot = onRequest(
     }
 
     // Case A: a reviewer's plain-language reply inside a Guide review-card
-    // thread (in #citsci_feedback) is a natural-language correction.
-    if (event.type === "message" && event.channel === REVIEW_CHANNEL_ID &&
+    // thread (in #citsci_bot_feedback, or legacy #citsci_feedback) is a
+    // natural-language correction. We don't hard-match the channel id — the
+    // bot-feedback channel isn't hardcoded — and rely on handleReviewComment's
+    // guide_review_threads lookup to ignore any thread that isn't a review card.
+    if (event.type === "message" &&
         event.thread_ts && event.thread_ts !== event.ts &&
         !event.bot_id && !event.subtype) {
       res.status(200).send("ok");
@@ -1392,31 +1395,44 @@ exports.guideAssistant = onRequest(
 // If REVIEW_CHANNEL_ID is set (the C… id from the channel's About / URL), it's
 // used directly — no channels:read scope or lookup needed, just chat:write and
 // the bot being a member. Otherwise we fall back to looking it up by name.
+// #citsci_feedback — GENERAL site feedback / issues (submitIssue).
 const REVIEW_CHANNEL_ID = "C0BG5CN71C3";
 const REVIEW_CHANNEL_NAME = "citsci_feedback";
+// #citsci_bot_feedback — AI Guide answer feedback (guideFeedback). No hardcoded
+// id yet; resolved by name. Set BOT_FEEDBACK_CHANNEL_ID to the C… id (from the
+// channel's About/URL) if name resolution fails (missing channels:read).
+const BOT_FEEDBACK_CHANNEL_ID = "C0BGTNRRA75";
+const BOT_FEEDBACK_CHANNEL_NAME = "citsci_bot_feedback";
 // Hardcoded member IDs (amy, celia, marissa/sorek.m) so @-mentions resolve to
 // live pings without the users:read scope. Falls back to name lookup if empty.
 const REVIEW_MENTION_IDS = ["U02FH1DRC", "U033NHWDE", "U033TSX9A"];
 const REVIEW_MENTION_HANDLES = ["amy", "celia", "sorek.m"];
-let _reviewChannelId = null;
+const _channelIdCache = {};
 let _reviewMentionIds = null;
 
-async function resolveReviewChannel(token) {
-  if (REVIEW_CHANNEL_ID) return REVIEW_CHANNEL_ID;
-  if (_reviewChannelId) return _reviewChannelId;
+async function resolveChannelByName(token, hardId, name) {
+  if (hardId) return hardId;
+  if (_channelIdCache[name]) return _channelIdCache[name];
   let cursor;
   for (let i = 0; i < 12; i++) {
     // public_channel only — avoids the groups:read scope requirement.
     const r = await slackPost(token, "conversations.list", {
       types: "public_channel", exclude_archived: true, limit: 1000, cursor,
     });
-    if (!r.ok) { console.error("[guide] conversations.list:", r.error); break; }
-    const match = (r.channels || []).find((c) => c.name === REVIEW_CHANNEL_NAME);
-    if (match) { _reviewChannelId = match.id; return _reviewChannelId; }
+    if (!r.ok) { console.error("[feedback] conversations.list:", r.error); break; }
+    const match = (r.channels || []).find((c) => c.name === name);
+    if (match) { _channelIdCache[name] = match.id; return match.id; }
     cursor = r.response_metadata && r.response_metadata.next_cursor;
     if (!cursor) break;
   }
   return null;
+}
+
+async function resolveReviewChannel(token) {
+  return resolveChannelByName(token, REVIEW_CHANNEL_ID, REVIEW_CHANNEL_NAME);
+}
+async function resolveBotFeedbackChannel(token) {
+  return resolveChannelByName(token, BOT_FEEDBACK_CHANNEL_ID, BOT_FEEDBACK_CHANNEL_NAME);
 }
 
 async function resolveReviewMentionIds(token) {
@@ -1445,14 +1461,15 @@ async function resolveReviewMentionIds(token) {
 
 async function postCorrectionReview(token, entry) {
   try {
-    const channel = await resolveReviewChannel(token);
-    if (!channel) { console.error("[guide] review channel not found"); return; }
+    const channel = await resolveBotFeedbackChannel(token);
+    if (!channel) { console.error("[guide] bot-feedback channel not found"); return; }
     const mentionIds = await resolveReviewMentionIds(token);
     const mentions = mentionIds.map((id) => `<@${id}>`).join(" ");
 
     const nonEnglish = entry.lang && !/^en/i.test(entry.lang);
     const lines = [
-      `:mag: *Guide answer flagged as wrong* (dataset: ${entry.dataset || "?"}${nonEnglish ? `, lang: ${entry.lang}` : ""})`,
+      `:robot_face: *AI Guide answer flagged as wrong* (dataset: ${entry.dataset || "?"}${nonEnglish ? `, lang: ${entry.lang}` : ""})`,
+      `*From:* ${entry.user || "anonymous"}`,
       `*Q:* ${entry.message || "(question not logged)"}`,
       `*Bot said:* ${(entry.reply || "(no reply logged)").slice(0, 700)}`,
       entry.correction ? `*User's correction:* ${entry.correction}` : "_(no correction text supplied)_",
@@ -1484,6 +1501,85 @@ async function postCorrectionReview(token, entry) {
   }
 }
 
+// ─── submitIssue — a user-reported site issue / feedback → Slack ──────────────
+// General "Submit issue" button anywhere in the app posts here. Reuses the same
+// Slack review channel + reviewer mentions as the Guide feedback loop
+// (#citsci_feedback) and keeps a durable Firestore record in `site_issues`.
+const ISSUE_CATEGORIES = ["Bug", "Idea", "Data problem", "Other"];
+const ISSUE_EMOJI = {
+  "Bug": ":beetle:", "Idea": ":bulb:", "Data problem": ":warning:", "Other": ":speech_balloon:",
+};
+
+async function postIssueToSlack(token, issue) {
+  try {
+    const channel = await resolveReviewChannel(token);
+    if (!channel) { console.error("[issue] review channel not found"); return; }
+    const mentionIds = await resolveReviewMentionIds(token);
+    const mentions = mentionIds.map((id) => `<@${id}>`).join(" ");
+    const emoji = ISSUE_EMOJI[issue.category] || ISSUE_EMOJI.Other;
+    const lines = [
+      `${emoji} *New site issue submitted* — _${issue.category}_`,
+      `*From:* ${issue.user || "anonymous"}${issue.dataset ? ` · dataset: ${issue.dataset}` : ""}`,
+      `*Report:* ${issue.message}`,
+      issue.url ? `*Page:* ${issue.url}` : null,
+      mentions || null,
+    ].filter(Boolean);
+    const text = lines.join("\n");
+    let r = await slackPost(token, "chat.postMessage", { channel, text, unfurl_links: false });
+    if (!r.ok && r.error === "not_in_channel") {
+      await slackPost(token, "conversations.join", { channel });
+      r = await slackPost(token, "chat.postMessage", { channel, text, unfurl_links: false });
+    }
+    if (!r.ok) console.error("[issue] slack post failed:", r.error);
+  } catch (e) {
+    console.error("[issue] postIssueToSlack error:", e);
+  }
+}
+
+exports.submitIssue = onRequest(
+  { region: "us-central1", cors: false, invoker: "public", maxInstances: 10, secrets: [slackBotToken] },
+  async (req, res) => {
+    const origin = req.get("origin") || "";
+    const originOk = GUIDE_ALLOWED_ORIGIN_RE.test(origin);
+    if (originOk) { res.set("Access-Control-Allow-Origin", origin); res.set("Vary", "Origin"); }
+
+    if (req.method === "OPTIONS") {
+      res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+      res.set("Access-Control-Allow-Headers", "Content-Type");
+      res.set("Access-Control-Max-Age", "3600");
+      res.status(204).send("");
+      return;
+    }
+    if (!originOk) { res.status(403).json({ error: "origin not allowed" }); return; }
+    if (req.method !== "POST") { res.status(405).json({ error: "POST only" }); return; }
+
+    const b = req.body || {};
+    const message = typeof b.message === "string" ? b.message.trim().slice(0, 4000) : "";
+    if (!message) { res.status(400).json({ error: "message required" }); return; }
+    const category = ISSUE_CATEGORIES.includes(b.category) ? b.category : "Other";
+    const user = typeof b.user === "string" ? b.user.slice(0, 200) : "";
+    const dataset = typeof b.dataset === "string" ? b.dataset.slice(0, 120) : "";
+    const pageUrl = typeof b.url === "string" ? b.url.slice(0, 500) : "";
+
+    const rl = await rateLimit(req, !!user, "issue");
+    if (!rl.ok) { res.status(429).json({ error: "rate_limited" }); return; }
+
+    try {
+      await db.collection("site_issues").add({
+        message, category,
+        user: user || null, dataset: dataset || null, url: pageUrl || null,
+        origin, at: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      res.json({ ok: true });
+      // Fire-and-forget Slack post (response already sent).
+      postIssueToSlack(slackBotToken.value(), { message, category, user, dataset, url: pageUrl });
+    } catch (err) {
+      console.error("submitIssue error:", err);
+      if (!res.headersSent) res.status(500).json({ error: "could not record issue" });
+    }
+  },
+);
+
 exports.guideFeedback = onRequest(
   { region: "us-central1", cors: false, invoker: "public", maxInstances: 10, secrets: [slackBotToken] },
   async (req, res) => {
@@ -1501,11 +1597,12 @@ exports.guideFeedback = onRequest(
     if (!originOk) { res.status(403).json({ error: "origin not allowed" }); return; }
     if (req.method !== "POST") { res.status(405).json({ error: "POST only" }); return; }
 
-    const { logId, verdict, correction, reply } = req.body || {};
+    const { logId, verdict, correction, reply, user } = req.body || {};
     if (verdict !== "up" && verdict !== "down") {
       res.status(400).json({ error: "verdict must be 'up' or 'down'" });
       return;
     }
+    const userName = typeof user === "string" ? user.slice(0, 200) : "";
 
     // Light per-IP cap — feedback is cheap, but stop spam.
     const fbRl = await rateLimit(req, true, "fb");
@@ -1535,7 +1632,7 @@ exports.guideFeedback = onRequest(
       }
       res.json({ ok: true });
 
-      // A downvote → route to Slack #citsci_feedback for reviewer signoff.
+      // A downvote → route to Slack #citsci_bot_feedback for reviewer signoff.
       if (verdict === "down") {
         await postCorrectionReview(slackBotToken.value(), {
           logId: (logId && typeof logId === "string") ? logId : null,
@@ -1544,6 +1641,7 @@ exports.guideFeedback = onRequest(
           correction: corr || null,
           dataset: logData.dataset || null,
           lang: logData.lang || null,
+          user: userName || logData.user || null,
         });
       }
     } catch (err) {
