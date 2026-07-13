@@ -647,25 +647,45 @@ exports.slackBot = onRequest(
 );
 
 // A reviewer's thread reply to a Guide review card = a natural-language
-// correction. Attach it to that turn's guide_logs doc and acknowledge with 📝.
+// correction. Attach it to that turn's guide_logs doc, react 📝, and reply in
+// the thread confirming what happened (received + how far it's integrated, or
+// — if we couldn't attach it — that it may not be tracked).
 async function handleReviewComment(event, botToken) {
   const snap = await db.collection("guide_review_threads").doc(event.thread_ts).get();
   if (!snap.exists) return; // not one of our review cards
-  const { logId } = snap.data() || {};
+  const { logId, message } = snap.data() || {};
   const text = (event.text || "").trim();
   if (!text) return;
 
   const note = { author: event.user || null, text: text.slice(0, 2000), ts: event.ts || null, at: Date.now() };
+  let saved = false;
   if (logId) {
-    await db.collection("guide_logs").doc(logId).set({
-      reviewerNotes: admin.firestore.FieldValue.arrayUnion(note),
-      reviewerCorrection: text.slice(0, 2000),   // latest reviewer note, convenient
-      reviewerCorrectedAt: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
+    try {
+      await db.collection("guide_logs").doc(logId).set({
+        reviewerNotes: admin.firestore.FieldValue.arrayUnion(note),
+        reviewerCorrection: text.slice(0, 2000),   // latest reviewer note, convenient
+        reviewerCorrectedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+      saved = true;
+    } catch (e) {
+      console.error("[guide] reviewer note save failed:", e);
+    }
   }
   await slackPost(botToken, "reactions.add", {
-    channel: event.channel, timestamp: event.ts, name: "memo",
+    channel: event.channel, timestamp: event.ts, name: saved ? "memo" : "warning",
   }).catch(() => {});
+
+  // Confirm in-thread so the reviewer knows it landed (and isn't left wondering).
+  const qref = message ? ` to “${String(message).slice(0, 120)}”` : "";
+  const reply = saved
+    ? `📝 Got it — correction${qref} received and logged for review. Heads up: corrections aren't auto-applied to my live answers yet, so a human folds them into my knowledge before they take effect.`
+    : `⚠️ I saw your reply${qref}, but couldn't link it to the original question (no log id on this thread), so it may not be tracked. Worth flagging to the team directly.`;
+  await slackPost(botToken, "chat.postMessage", {
+    channel: event.channel,
+    thread_ts: event.thread_ts,
+    text: reply,
+    unfurl_links: false,
+  }).catch((e) => console.error("[guide] confirm reply failed:", e));
 }
 
 // ──────────────────────────────────────────────────────────────────────────
