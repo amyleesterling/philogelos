@@ -41,11 +41,6 @@
 
   body {
     background: var(--cream);
-    background-image: linear-gradient(rgba(50,55,65,0.17), rgba(50,55,65,0.17)), url('parchment3.png');
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
-    background-blend-mode: normal, overlay;
     color: var(--ink);
     font-family: 'Inter', sans-serif;
     overflow-x: hidden;
@@ -54,6 +49,22 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
+  }
+
+  /* Fixed background layer — iOS Safari doesn't support
+     background-attachment: fixed on body, which left a visible seam
+     where the texture ended mid-page. A position:fixed layer works
+     everywhere and keeps the parchment covering the full viewport. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background-color: var(--cream);
+    background-image: linear-gradient(rgba(50,55,65,0.17), rgba(50,55,65,0.17)), url('parchment3.png');
+    background-size: cover;
+    background-position: center;
+    background-blend-mode: normal, overlay;
   }
 
   /* ══════════ HERO ══════════ */
