@@ -41,11 +41,6 @@
 
   body {
     background: var(--cream);
-    background-image: linear-gradient(rgba(50,55,65,0.17), rgba(50,55,65,0.17)), url('parchment3.png');
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
-    background-blend-mode: normal, overlay;
     color: var(--ink);
     font-family: 'Inter', sans-serif;
     overflow-x: hidden;
@@ -54,6 +49,22 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
+  }
+
+  /* Fixed background layer — iOS Safari doesn't support
+     background-attachment: fixed on body, which left a visible seam
+     where the texture ended mid-page. A position:fixed layer works
+     everywhere and keeps the parchment covering the full viewport. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background-color: var(--cream);
+    background-image: linear-gradient(rgba(50,55,65,0.17), rgba(50,55,65,0.17)), url('parchment3.png');
+    background-size: cover;
+    background-position: center;
+    background-blend-mode: normal, overlay;
   }
 
   /* ══════════ HERO ══════════ */
@@ -175,6 +186,91 @@
     text-align: left;
   }
   .new-q:hover { opacity: 1; }
+
+  /* ══════════ ANSWER BOX ══════════ */
+  .answer-area {
+    margin-top: 1.4rem;
+  }
+  .answer-row {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .answer-row input {
+    flex: 1;
+    min-width: 0;
+    background: #faf8f4;
+    border: 1px solid #e0d9cc;
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.95rem;
+    padding: 0.7rem 0.9rem;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+  .answer-row input:focus {
+    border-color: var(--warm);
+    box-shadow: 0 0 0 3px rgba(196,168,122,0.12);
+  }
+  .answer-row input::placeholder { color: #b0a898; }
+  .answer-row button {
+    background: #5c6b7a;
+    color: #f5f2ed;
+    border: none;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.7rem 1.2rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .answer-row button:hover { background: #4d5c6a; }
+  .answer-row button:disabled { opacity: 0.6; cursor: default; }
+
+  .others {
+    display: none;
+    margin-top: 1.2rem;
+    text-align: left;
+    animation: fadeUp 0.6s ease;
+  }
+  .others.show { display: block; }
+  .others-label {
+    font-size: 0.65rem;
+    color: #8a7e6e;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 0.6rem;
+  }
+  .other-answer {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.15rem;
+    color: #55504a;
+    line-height: 1.5;
+    padding: 0.5rem 0.8rem;
+    margin-bottom: 0.4rem;
+    background: rgba(255,255,255,0.5);
+    border-left: 2px solid rgba(196,168,122,0.5);
+    border-radius: 0 6px 6px 0;
+  }
+  .others-empty {
+    font-size: 0.85rem;
+    color: var(--ink-faint);
+    font-style: italic;
+  }
+  .others-more {
+    background: none;
+    border: none;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.75rem;
+    color: #7a746a;
+    cursor: pointer;
+    opacity: 0.6;
+    margin-top: 0.2rem;
+    padding: 0;
+  }
+  .others-more:hover { opacity: 1; }
 
   /* ══════════ SHARE BUTTONS ══════════ */
   .share-row {
@@ -542,6 +638,19 @@
     <div class="sample">
     <div class="sample-label">Today's question</div>
     <div class="sample-q" id="sample-q"></div>
+
+    <div class="answer-area" id="answer-area">
+      <div class="answer-row" id="answer-row">
+        <input type="text" id="answer-input" placeholder="your answer..." maxlength="280">
+        <button id="answer-btn" onclick="submitAnswer()">answer</button>
+      </div>
+      <div class="others" id="others">
+        <div class="others-label">what others said</div>
+        <div id="others-list"></div>
+        <button class="others-more" id="others-more" onclick="showOthers()" style="display:none;">more answers &rarr;</button>
+      </div>
+    </div>
+
     <button class="new-q" onclick="newQuestion()">another one &rarr;</button>
     <div class="share-row">
       <button class="share-btn" onclick="shareToX()">
@@ -567,7 +676,7 @@
   <div id="signup-form">
     <div class="signup-stone">
       <input type="tel" id="phone" placeholder="your phone number" autocomplete="tel">
-      <button onclick="subscribe()">send me questions</button>
+      <button onclick="subscribe()">send me 1 question a day</button>
     </div>
     <div class="fine-print">One text per day. No spam. Unsubscribe anytime. Free for nao.</div>
 
@@ -677,7 +786,106 @@ function newQuestion() {
   do { idx = Math.floor(Math.random() * questions.length); } while (idx === lastIndex);
   lastIndex = idx;
   document.getElementById('sample-q').textContent = questions[idx];
+  resetAnswerArea();
 }
+
+// ══════════ ANSWERS (Firestore REST — no SDK needed) ══════════
+const FS_BASE = 'https://firestore.googleapis.com/v1/projects/ytho-4bff2/databases/(default)';
+const FS_KEY = 'AIzaSyBBhgSJUjgNBiLvkgmW5r6kmu3l9F3Fhu8';
+let othersPool = [];   // unshown answers for the current question
+let shownOthers = 0;
+
+function resetAnswerArea() {
+  othersPool = [];
+  shownOthers = 0;
+  const input = document.getElementById('answer-input');
+  input.value = '';
+  input.style.borderColor = '';
+  document.getElementById('answer-row').style.display = '';
+  const btn = document.getElementById('answer-btn');
+  btn.disabled = false;
+  btn.textContent = 'answer';
+  document.getElementById('others').classList.remove('show');
+  document.getElementById('others-list').innerHTML = '';
+  document.getElementById('others-more').style.display = 'none';
+}
+
+async function fetchAnswers(q) {
+  const res = await fetch(FS_BASE + '/documents:runQuery?key=' + FS_KEY, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      structuredQuery: {
+        from: [{ collectionId: 'answers' }],
+        where: { fieldFilter: { field: { fieldPath: 'q' }, op: 'EQUAL', value: { stringValue: q } } },
+        limit: 100
+      }
+    })
+  });
+  const rows = await res.json();
+  return rows
+    .filter(r => r.document && r.document.fields && r.document.fields.text)
+    .map(r => r.document.fields.text.stringValue);
+}
+
+async function saveAnswer(q, text) {
+  await fetch(FS_BASE + '/documents/answers?key=' + FS_KEY, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fields: {
+      q: { stringValue: q },
+      text: { stringValue: text },
+      ts: { integerValue: String(Date.now()) }
+    }})
+  });
+}
+
+function showOthers() {
+  const list = document.getElementById('others-list');
+  const batch = othersPool.splice(0, 3);
+  for (const text of batch) {
+    const div = document.createElement('div');
+    div.className = 'other-answer';
+    div.textContent = text;
+    list.appendChild(div);
+    shownOthers++;
+  }
+  if (shownOthers === 0) {
+    list.innerHTML = '<div class="others-empty">you’re the first — your answer is now waiting here for the next person.</div>';
+  }
+  document.getElementById('others-more').style.display = othersPool.length > 0 ? '' : 'none';
+  document.getElementById('others').classList.add('show');
+}
+
+async function submitAnswer() {
+  const input = document.getElementById('answer-input');
+  const text = input.value.trim();
+  if (!text) {
+    input.style.borderColor = '#ff4444';
+    return;
+  }
+  const q = document.getElementById('sample-q').textContent;
+  const btn = document.getElementById('answer-btn');
+  btn.disabled = true;
+  btn.textContent = '...';
+
+  try {
+    // fetch existing answers first so the writer's own answer isn't in the pool
+    const [existing] = await Promise.all([fetchAnswers(q), saveAnswer(q, text)]);
+    // shuffle so each visitor sees a random sample
+    othersPool = existing.sort(() => Math.random() - 0.5);
+    document.getElementById('answer-row').style.display = 'none';
+    showOthers();
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'answer';
+    input.style.borderColor = '#ff4444';
+  }
+}
+
+document.getElementById('answer-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitAnswer();
+});
 
 async function subscribe() {
   const phoneInput = document.getElementById('phone');
@@ -704,7 +912,7 @@ async function subscribe() {
       document.getElementById('success').classList.add('show');
     } else {
       btn.disabled = false;
-      btn.textContent = 'send me questions';
+      btn.textContent = 'send me 1 question a day';
       phoneInput.style.borderColor = '#ff4444';
     }
   } catch (err) {
