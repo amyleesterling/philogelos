@@ -207,13 +207,32 @@ KEY CONTEXT you know about:
 
 **ng-extend** — Vue 3 + Pinia Chrome extension on top of neuroglancer. Repo: seung-lab/ng-extend. Amy's fork: amyleesterling/ng-extend. Active branch: eyewire-ii-community. Deploys via App Engine (service: brain-wire). Also GitHub Pages at amyleesterling.github.io/eyewire-ii/.
 
-**Dataset** — stroeh_mouse_retina on minnie.microns-daf.com (CAVE server). ~22,686 segments. Neuroglancer layer name: "stroeh_mouse_retina" or alias "eyewire_ii".
+**Datasets** — the app is MULTI-SERVER as of 2026-09-22. Do not assume minnie.
+- stroeh_mouse_retina on minnie.microns-daf.com. ~22,686 segments. Layer name "stroeh_mouse_retina", alias "eyewire_ii". This is production.
+- pinky_sandbox, minnie65_public, minnie65_live: also minnie.
+- **pni_mec (MEC, medial entorhinal cortex) on hc.himc-cave.com.** The first dataset NOT on minnie. Built by Eric with Zhihao. This is the first dataset the EyeWire citizen scientists will test.
+
+**MEC specifics** (verified 2026-09-22, re-verify before repeating):
+- datastack pni_mec, aligned volume pni_mec (id 17, display name "MEC"), PCG table pni_mec
+- image precomputed://https://c10s.pni.princeton.edu/mec_alignment_2025-09/alignment/img/v2, uint8, jxl encoded
+- voxel 16 x 16 x 45 nm. Z is 45, NOT 40 like the others.
+- segmentation voxel_offset 76728, 65192, 8, size 126968 x 83616 x 9932. A camera position copied from another dataset lands outside the segmented block.
+- hc.himc-cave.com uses the SAME global.daf-apis.com/sticky_auth realm as minnie, so one login covers both.
+- Eric's shared spelunker states name the layers "img" and "seg". The app registers the segmentation layer as "pni_mec" instead, because "seg" is too short and generic to key a CAVE config on.
+- cluster 7 is the presumed stellate population: 1,102 nuclei, 1,094 cells.
+
+**MEC is known broken server-side as of 2026-09-22.** This is what Eric and Zhihao were hitting. Observed with a real CAVE token:
+- the annotation service on hc.himc-cave.com returns 400 invalid_table_id for aligned_volume pni_mec, while returning 200 for minnie's volumes (minnie65_phase3, stroeh_mouse_retina, pinky100). It appears to be reading the wrong aligned-volume registry. pni_mec is not registered with it.
+- materialize on hc.himc-cave.com returns 503 from nginx for /materialize/api/v3/datastack/pni_mec/versions, while minnie returns a real version list for the retina.
+- the chunkedgraph on hc IS healthy.
+Consequence: viewing and merge/split proofreading work on MEC. Mark Complete, Cell Type, the lightbulb and the leaderboard do NOT, because there is no cell_status or cell_type table and none can be created until CAVE registers the aligned volume. Planned names once fixed: mec_cell_status_v1 (schema bound_tag_user, required for leaderboard credit) and mec_cell_type_v1.
+This is a snapshot, not a standing truth. If someone says it is fixed, believe them over this prompt.
 
 **CAVE infrastructure (stroeh_mouse_retina)**:
 - PCG: https://minnie.microns-daf.com/segmentation/table/stroeh_mouse_retina
 - AnnotationEngine (writes): /annotation/api/v2/aligned_volume/stroeh_mouse_retina/
 - Materializer (reads): /materialize/api/v3/datastack/stroeh_mouse_retina/
-- Contacts: Akhilesh (first contact, materialization scheduling), #shared_cave_seunglab (escalation), Forrest/Derrick (actual fixes)
+- Contacts: Akhilesh (first contact, materialization scheduling), #shared_cave_seunglab (escalation), Forrest/Derrick (actual fixes). For MEC specifically: Eric is the dataset owner, with Zhihao.
 
 **CAVE tables**:
 - eyewire_ii_cell_status — completions, tag='complete', bound_tag schema (pt_position + tag)
@@ -225,7 +244,7 @@ KEY CONTEXT you know about:
 
 **Other active projects** Amy runs: neuronsnake.com (NEURON Game), thislast.com, ytho.club (daily philosophical questions), findmytown.com, shield (fintech).
 
-**YOU HAVE TOOLS.** When asked about ng-extend code, use fetch_ng_extend_file. When asked about CAVE status, use check_cave_health (which does LIVE probes — no cached claims). Prefer tool calls over guessing. If asked something outside this context, say so honestly. Route CAVE issues to #shared_cave_seunglab — don't name individuals.`;
+**YOU HAVE TOOLS.** When asked about ng-extend code, use fetch_ng_extend_file; pass repo="amyleesterling" if a file looks like it is missing recent work, because Amy's fork is often ahead of seung-lab. When asked about CAVE status, use check_cave_health with the right dataset argument (pni_mec for MEC, it is on a different server). Know its limit: it proves reachability and CORS only. It cannot see whether a table exists, whether an aligned volume is registered, or whether materialization runs, because CAVE checks auth first and you have no CAVE token. If someone asks you to confirm MEC's tables, say plainly that you cannot check that and a signed-in human has to. Prefer tool calls over guessing. If asked something outside this context, say so honestly. Route CAVE issues to #shared_cave_seunglab — don't name individuals.`;
 
 async function verifySlackSignature(req, signingSecret) {
   const timestamp = req.header("X-Slack-Request-Timestamp");
@@ -277,14 +296,21 @@ const BOT_TOOLS = [
       type: "object",
       properties: {
         path: { type: "string", description: "Repo-relative path, e.g. 'src/widgets/lightbulb_service.ts' or 'src/config.ts'" },
+        repo: { type: "string", enum: ["seung-lab", "amyleesterling"], description: "Which remote to read. Default seung-lab (production). Amy's fork amyleesterling is often AHEAD - use it when a file seems to be missing recent work." },
       },
       required: ["path"],
     },
   },
   {
     name: "check_cave_health",
-    description: "LIVE-probe CAVE state for stroeh_mouse_retina on minnie.microns-daf.com. Probes deployed Materializer version, CORS preflights on AnnotationEngine + Materializer, and a real POST probe (with junk token) to verify CORS headers attach to actual responses (not just preflights). Returns ONLY current observed values — no cached or remembered claims. Use whenever asked about CAVE health, CORS, deployed versions, or whether a specific endpoint is reachable.",
-    input_schema: { type: "object", properties: {}, required: [] },
+    description: "LIVE-probe CAVE reachability for one dataset. Pass dataset='pni_mec' for MEC (server hc.himc-cave.com) or 'stroeh_mouse_retina' for the retina (minnie.microns-daf.com); default is the retina. Probes which CAVE services answer, CORS preflights, and a junk-token request. Returns ONLY currently observed values. IMPORTANT: it proves reachability and CORS only. It CANNOT see whether a table or aligned volume exists or whether materialization runs, because CAVE checks auth first and this bot has no CAVE token. Never report a dataset as healthy on the strength of this tool alone.",
+    input_schema: {
+      type: "object",
+      properties: {
+        dataset: { type: "string", enum: ["stroeh_mouse_retina", "pni_mec"], description: "Which dataset's CAVE deployment to probe. Default stroeh_mouse_retina." },
+      },
+      required: [],
+    },
   },
   // Persistent memory across Slack threads. Backed by a single Firestore doc
   // (bot_memory/files) with a {path: content} map. Use for things you'd want
@@ -298,41 +324,75 @@ const BOT_TOOLS = [
 
 // ─── Tool implementations ──────────────────────────────────────────────────
 
-async function toolFetchNgExtendFile({ path }) {
+const NG_EXTEND_REPOS = { "seung-lab": "seung-lab/ng-extend", "amyleesterling": "amyleesterling/ng-extend" };
+
+async function toolFetchNgExtendFile({ path, repo }) {
   if (!path || path.includes("..") || path.startsWith("/")) return "(invalid path)";
-  const url = `https://raw.githubusercontent.com/seung-lab/ng-extend/eyewire-ii-community/${path}`;
+  const slug = NG_EXTEND_REPOS[repo] || NG_EXTEND_REPOS["seung-lab"];
+  const url = `https://raw.githubusercontent.com/${slug}/eyewire-ii-community/${path}`;
   const r = await fetch(url);
-  if (!r.ok) return `(fetch failed: ${r.status} ${r.statusText} for ${path})`;
+  if (!r.ok) return `(fetch failed from ${slug}: ${r.status} ${r.statusText} for ${path}. If this is new work it may only exist on the amyleesterling fork - retry with repo="amyleesterling".)`;
   const text = await r.text();
   return text.length > 8000 ? text.slice(0, 8000) + `\n\n[truncated — full file is ${text.length} chars]` : text;
 }
 
-async function toolCheckCaveHealth() {
-  // ALL checks below are LIVE — no hardcoded "known state" claims.
-  // Auth-required endpoints (counts, /query data, version lists) require
-  // a CAVE token the bot doesn't have, so we probe the auth-free surfaces:
-  // /materialize/version (returns deployed version string), OPTIONS preflights,
-  // and a real POST with a junk token (returns 401 with proper CORS headers
-  // if endpoint is healthy and CORS is configured).
-  const base = "https://minnie.microns-daf.com";
+// Every dataset the bot can probe. MEC is the first one NOT on minnie.
+const CAVE_TARGETS = {
+  stroeh_mouse_retina: {
+    base: "https://minnie.microns-daf.com",
+    alignedVolume: "stroeh_mouse_retina",
+    datastack: "stroeh_mouse_retina",
+    cellStatusTable: "eyewire_ii_cell_status_v2",
+    pcgTable: "stroeh_mouse_retina",
+  },
+  pni_mec: {
+    base: "https://hc.himc-cave.com",
+    alignedVolume: "pni_mec",
+    datastack: "pni_mec",
+    cellStatusTable: "mec_cell_status_v1",
+    pcgTable: "pni_mec",
+  },
+};
+
+async function toolCheckCaveHealth({ dataset } = {}) {
+  // ALL checks below are LIVE. Nothing here is a remembered claim.
+  //
+  // HARD LIMIT, state it rather than paper over it: this bot holds no CAVE
+  // token. CAVE runs auth BEFORE resource resolution, so every authenticated
+  // surface answers 401 invalid_token no matter what is wrong underneath.
+  // Verified 2026-09-22: a GET with a junk bearer to a REAL aligned volume and
+  // to a volume that does not exist on that server return byte-identical 401s.
+  // So this tool can prove an endpoint is reachable and CORS-correct. It
+  // CANNOT prove a table exists, that a volume is registered, or that
+  // materialization is running. Do not let it imply otherwise.
+  const key = CAVE_TARGETS[dataset] ? dataset : "stroeh_mouse_retina";
+  const t = CAVE_TARGETS[key];
+  const base = t.base;
   const origin = "https://eyewire-ii-community-dot-brain-wire-dot-seung-lab.ue.r.appspot.com";
   const probedAt = new Date().toISOString();
-  const checks = [`Probed at: ${probedAt} (UTC)`];
-
-  // 1. Deployed Materializer version (no auth needed).
-  try {
-    const r = await fetch(`${base}/materialize/version`);
-    if (r.ok) {
-      const v = (await r.text()).trim().replace(/^"|"$/g, "");
-      checks.push(`Materializer deployed: ${v}`);
-    } else {
-      checks.push(`Materializer /version: HTTP ${r.status}`);
-    }
-  } catch (e) {
-    checks.push(`Materializer /version: error (${e.message})`);
+  const checks = [
+    `Dataset: ${key}  (CAVE server ${base}, aligned volume ${t.alignedVolume})`,
+    `Probed at: ${probedAt} (UTC)`,
+  ];
+  if (!CAVE_TARGETS[dataset] && dataset) {
+    checks.push(`NOTE: "${dataset}" is not a dataset I know, probed ${key} instead. Known: ${Object.keys(CAVE_TARGETS).join(", ")}.`);
   }
 
-  // 2. CORS preflights on both endpoints.
+  // 1. Which CAVE services are even answering on this host.
+  for (const [label, path] of [
+    ["annotation", "/annotation/api/versions"],
+    ["materialize", "/materialize/api/versions"],
+  ]) {
+    try {
+      const r = await fetch(`${base}${path}`);
+      const body = (await r.text()).slice(0, 80).replace(/\s+/g, " ");
+      if (r.ok) checks.push(`${label} service: up (HTTP ${r.status}, api versions ${body})`);
+      else if (r.status === 503) checks.push(`${label} service: HTTP 503 from the proxy. NOTE minnie answers 503 here too, so 503 on this path is NOT by itself evidence of a fault.`);
+      else checks.push(`${label} service: HTTP ${r.status}`);
+    } catch (e) { checks.push(`${label} service: error (${e.message})`); }
+  }
+
+  // 2. CORS preflights: reachable and browser-usable?
   async function corsCheck(label, url, method) {
     try {
       const r = await fetch(url, {
@@ -345,60 +405,31 @@ async function toolCheckCaveHealth() {
       });
       const corsOrigin = r.headers.get("access-control-allow-origin");
       const corsMethods = r.headers.get("access-control-allow-methods");
-      if (r.ok && corsOrigin) {
-        checks.push(`${label}: ✅ ${r.status} preflight, allow-origin=${corsOrigin}, methods=${corsMethods || "?"}`);
-      } else if (corsOrigin) {
-        checks.push(`${label}: ⚠️ ${r.status} preflight (has CORS but non-2xx) — endpoint may be removed or behind a route change`);
-      } else {
-        checks.push(`${label}: ❌ ${r.status} preflight, no CORS headers — browser will block cross-origin`);
-      }
+      if (r.ok && corsOrigin) checks.push(`${label}: OK ${r.status} preflight, allow-origin=${corsOrigin}, methods=${corsMethods || "?"}`);
+      else if (corsOrigin) checks.push(`${label}: WARN ${r.status} preflight (has CORS but non-2xx)`);
+      else checks.push(`${label}: FAIL ${r.status} preflight, no CORS headers, a browser will block this cross-origin`);
     } catch (e) { checks.push(`${label}: error (${e.message})`); }
   }
+  await corsCheck("AnnotationEngine preflight (writes)",
+    `${base}/annotation/api/v2/aligned_volume/${t.alignedVolume}/table/${t.cellStatusTable}/annotations`, "POST");
+  await corsCheck("Materializer preflight (reads)",
+    `${base}/materialize/api/v3/datastack/${t.datastack}/query`, "POST");
 
-  await corsCheck(
-    "AnnotationEngine /annotation/api/v2/ (writes)",
-    `${base}/annotation/api/v2/aligned_volume/stroeh_mouse_retina/table/eyewire_ii_cell_status/annotations`,
-    "POST"
-  );
-  await corsCheck(
-    "Materializer /materialize/api/v3/.../query (reads)",
-    `${base}/materialize/api/v3/datastack/stroeh_mouse_retina/query`,
-    "POST"
-  );
-
-  // 3. Real POST with junk token — verifies CORS headers attach to the actual
-  // response (not just preflight) and that the endpoint reaches the auth layer
-  // rather than 500-ing before it. A 401 with CORS headers means: endpoint is
-  // healthy, CORS is correct, only thing blocking is auth (which is expected).
+  // 3. Junk-token GET. A 401 invalid_token means the endpoint is alive and
+  //    reached its auth layer. It says nothing about what is behind it.
   try {
-    const r = await fetch(
-      `${base}/annotation/api/v2/aligned_volume/stroeh_mouse_retina/table/eyewire_ii_cell_status/annotations`,
-      {
-        method: "POST",
-        headers: {
-          "Origin": origin,
-          "Authorization": "Bearer junk_health_probe",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ annotations: [] }),
-      }
-    );
+    const r = await fetch(`${base}/annotation/api/v2/aligned_volume/${t.alignedVolume}/table`, {
+      headers: { "Origin": origin, "Authorization": "Bearer junk_health_probe" },
+    });
     const corsOrigin = r.headers.get("access-control-allow-origin");
-    if (r.status === 401 && corsOrigin) {
-      checks.push(`AnnotationEngine real POST: ✅ ${r.status} (auth check ran) + CORS on response`);
-    } else if (r.status === 401) {
-      checks.push(`AnnotationEngine real POST: ⚠️ ${r.status} but NO CORS on response — preflight passes, real response would be blocked`);
-    } else if (r.status >= 500) {
-      checks.push(`AnnotationEngine real POST: ❌ ${r.status} — endpoint is throwing before auth check`);
-    } else {
-      checks.push(`AnnotationEngine real POST: ${r.status} (CORS=${corsOrigin || "missing"}) — investigate manually`);
-    }
-  } catch (e) {
-    checks.push(`AnnotationEngine real POST: error (${e.message})`);
-  }
+    const body = (await r.text()).slice(0, 120).replace(/\s+/g, " ");
+    if (r.status === 401) checks.push(`AnnotationEngine junk-token GET: 401 as expected, endpoint alive and auth ran (CORS=${corsOrigin || "missing"}). Proves reachability ONLY.`);
+    else if (r.status >= 500) checks.push(`AnnotationEngine junk-token GET: ${r.status}, endpoint is throwing before the auth check. ${body}`);
+    else checks.push(`AnnotationEngine junk-token GET: ${r.status} ${body}`);
+  } catch (e) { checks.push(`AnnotationEngine junk-token GET: error (${e.message})`); }
 
   checks.push("");
-  checks.push("All values above are LIVE. Auth-protected endpoints (/count, /annotations row data, /query with real data, /versions list) require a CAVE token — verify those manually with a signed-in browser. Route anomalies via #shared_cave_seunglab.");
+  checks.push("WHAT THIS CANNOT TELL YOU, and you must not claim it does: whether the aligned volume is registered with the annotation service, whether a table exists, whether materialization is running, or any row counts. All of those sit behind auth and this bot has no CAVE token. A signed-in human must run those. For MEC specifically, ask Eric or Zhihao, or check #shared_cave_seunglab.");
 
   return checks.join("\n");
 }
@@ -479,7 +510,7 @@ async function toolMemory(input) {
 async function runTool(name, input) {
   try {
     if (name === "fetch_ng_extend_file") return await toolFetchNgExtendFile(input);
-    if (name === "check_cave_health") return await toolCheckCaveHealth();
+    if (name === "check_cave_health") return await toolCheckCaveHealth(input || {});
     if (name === "memory") return await toolMemory(input);
     return `(unknown tool: ${name})`;
   } catch (e) {
@@ -606,10 +637,19 @@ exports.slackBot = onRequest(
     // Dedup — Slack retries on timeout. Track event_id in Firestore. (all types)
     const eventId = req.body.event_id;
     if (eventId) {
+      // create() fails if the doc already exists, and it is atomic. The old
+      // get-then-set was a race: Slack retries after 3s, and a retry that
+      // arrived while the first invocation was still calling Claude would read
+      // "not seen", pass, and post a second identical reply. That is what
+      // produced the duplicate answers in #cave_backend_community.
       const seenRef = db.collection("slack_events_seen").doc(eventId);
-      const seen = await seenRef.get();
-      if (seen.exists) { res.status(200).send("duplicate"); return; }
-      await seenRef.set({ at: admin.firestore.FieldValue.serverTimestamp() });
+      try {
+        await seenRef.create({ at: admin.firestore.FieldValue.serverTimestamp() });
+      } catch (e) {
+        console.log(`dedup: event ${eventId} already claimed, dropping retry`);
+        res.status(200).send("duplicate");
+        return;
+      }
     }
 
     // Case A: a reviewer's plain-language reply inside a Guide review-card
