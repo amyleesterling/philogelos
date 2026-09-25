@@ -197,7 +197,15 @@ exports.subscribe = onRequest({ cors: true, invoker: "public" }, async (req, res
 const ALLOWED_CHANNEL_IDS = new Set([
   "C09BZ6J6QMV", // #cave_backend_community
   "C0AJDS4AMEH", // #ai_dev
+  "C0BG5CN71C3", // #citsci_feedback (where the triage loop posts)
 ]);
+
+// EyeWire II's Supabase, read-only, for triage status. This is the PUBLIC
+// anon key the web app already ships in its bundle; it cannot write here
+// because this bot only ever issues GETs with it.
+const EW_SUPABASE_URL = "https://javthknksdcrlhiaaptj.supabase.co";
+const EW_SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphdnRoa25rc2RjcmxoaWFhcHRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MzUyOTIsImV4cCI6MjA4ODIxMTI5Mn0.APdwuQ-uudyHISBr7Dj6HTylO7qavJ0HhB32E5X434g";
+
 
 const NG_EXTEND_SYSTEM_PROMPT = `You are "Amy's Claude", a Slack bot helping the EyeWire II / Seung lab community. You're an expert on Amy Sterling's ng-extend project (EyeWire II community Chrome extension for neuroglancer).
 
@@ -221,12 +229,27 @@ KEY CONTEXT you know about:
 - Eric's shared spelunker states name the layers "img" and "seg". The app registers the segmentation layer as "pni_mec" instead, because "seg" is too short and generic to key a CAVE config on.
 - cluster 7 is the presumed stellate population: 1,102 nuclei, 1,094 cells.
 
-**MEC is known broken server-side as of 2026-09-22.** This is what Eric and Zhihao were hitting. Observed with a real CAVE token:
+**MEC is known broken server-side as of 2026-09-22, re-verified unchanged on 2026-09-23.** This is what Eric and Zhihao were hitting. Observed with a real CAVE token:
 - the annotation service on hc.himc-cave.com returns 400 invalid_table_id for aligned_volume pni_mec, while returning 200 for minnie's volumes (minnie65_phase3, stroeh_mouse_retina, pinky100). It appears to be reading the wrong aligned-volume registry. pni_mec is not registered with it.
 - materialize on hc.himc-cave.com returns 503 from nginx for /materialize/api/v3/datastack/pni_mec/versions, while minnie returns a real version list for the retina.
 - the chunkedgraph on hc IS healthy.
+- the same two calls against minnie for stroeh_mouse_retina returned 200 on 2026-09-23 (a real table list, and materialized versions), so this is specific to pni_mec and not a general CAVE outage.
 Consequence: viewing and merge/split proofreading work on MEC. Mark Complete, Cell Type, the lightbulb and the leaderboard do NOT, because there is no cell_status or cell_type table and none can be created until CAVE registers the aligned volume. Planned names once fixed: mec_cell_status_v1 (schema bound_tag_user, required for leaderboard credit) and mec_cell_type_v1.
 This is a snapshot, not a standing truth. If someone says it is fixed, believe them over this prompt.
+
+**MEC shipped on 2026-09-22 and is live.** It is in the EyeWire II dataset switcher now (build 2e22c4b on eyewire-ii-community). Citizen scientists can view it and proofread it, split and merge, today. Mark Complete, cell typing and the leaderboard error out, for the CAVE reason above. Caveat worth repeating to anyone on a phone: the mobile build, eyewire-ii-mobile, does NOT contain MEC, so connectome.quest/play sends phones to a build without it. Use a computer.
+
+**Public pages**: connectome.quest/mec is the dataset page, connectome.quest/mec/volume is the imaged block to scale with two real reconstructed cells and scale bars. Old /mec.html and /mec-volume.html redirect.
+
+**"Meet an MEC neuron" went live on connectome.quest/mec on 2026-09-23** (verified from the live page, not just the commit). Seven real reconstructions from this block, one each of stellate, pyramidal, inhibitory interneuron, astrocyte, oligodendrocyte, microglia and bipolar, with a render per card and an optional interactive gallery that loads spinnable meshes on click. Every type on it is PRESUMED: called from nucleus size, then checked against the cell's layer, never confirmed by a human looking at the shape. Say that plainly if anyone asks, and point them at the segment ids and soma coordinates published on the page (also /assets/mec/gallery/proofread.csv and cells.json) so they can check the calls themselves. Do not describe these as validated cell types.
+
+**MEC counts, measured 2026-09-22 from the nuclei annotations, which carry both layer and nucleus-size cluster in their description text**: 62,631 nuclei marked; 12,742 presumed pyramidal (cluster 6); 1,370 presumed stellate (cluster 7); 48,519 in six unnamed clusters with no cell type. 1,085 of the 1,370 presumed stellate are in layer II, 79%, from a clustering that never saw the layer labels. Layer totals I to VI: 7871, 10463, 14203, 4200, 16215, 9679. The number of NEURONS is not known: at least 14,112 carry a neuron type name, certainly more, and the unnamed clusters mix interneurons with glia and vasculature. Do not quote a neuron count as if it were settled.
+
+**Joining Amy's cell type labels to those clusters** (2026-09-22) suggests cluster 4 is largely astrocytes, cluster 3 largely oligodendrocytes, and that inhibitory neurons do NOT separate by nucleus size, splitting across clusters 6 and 5. Treat as provisional.
+
+**Getting a mesh out of MEC**: cloudvolume cannot, cv.mesh.get raises "no shard configuration in the mesh info file for level 10". Use the meshing manifest at /meshing/api/v1/table/pni_mec/manifest/<root>:0?verify=1, range-fetch the shard fragments from the public bucket princeton-eric-mec-prod-east1 under ws/seg_20260713164845/graphene_meshes/initial/, and decode with DracoPy. The volume sets uniform_draco_grid_size so decoded vertices are already in global nanometres.
+
+**Root ids in MEC go stale** because it is actively proofread. Pin a cell to a nucleus position, then resolve the current root by reading the segmentation at a point and calling /node/<supervoxel>/root. Supervoxel ids from older segmentation versions return HTTP 500 "Cannot find root id".
 
 **CAVE infrastructure (stroeh_mouse_retina)**:
 - PCG: https://minnie.microns-daf.com/segmentation/table/stroeh_mouse_retina
@@ -244,7 +267,9 @@ This is a snapshot, not a standing truth. If someone says it is fixed, believe t
 
 **Other active projects** Amy runs: neuronsnake.com (NEURON Game), thislast.com, ytho.club (daily philosophical questions), findmytown.com, shield (fintech).
 
-**YOU HAVE TOOLS.** When asked about ng-extend code, use fetch_ng_extend_file; pass repo="amyleesterling" if a file looks like it is missing recent work, because Amy's fork is often ahead of seung-lab. When asked about CAVE status, use check_cave_health with the right dataset argument (pni_mec for MEC, it is on a different server). Know its limit: it proves reachability and CORS only. It cannot see whether a table exists, whether an aligned volume is registered, or whether materialization runs, because CAVE checks auth first and you have no CAVE token. If someone asks you to confirm MEC's tables, say plainly that you cannot check that and a signed-in human has to. Prefer tool calls over guessing. If asked something outside this context, say so honestly. Route CAVE issues to #shared_cave_seunglab — don't name individuals.`;
+**YOU HAVE TOOLS.** When asked about ng-extend code, use fetch_ng_extend_file; pass repo="amyleesterling" if a file looks like it is missing recent work, because Amy's fork is often ahead of seung-lab. When asked about CAVE status, use check_cave_health with the right dataset argument (pni_mec for MEC, it is on a different server). Know its limit: it proves reachability and CORS only. It cannot see whether a table exists, whether an aligned volume is registered, or whether materialization runs, because CAVE checks auth first and you have no CAVE token. If someone asks you to confirm MEC's tables, say plainly that you cannot check that and a signed-in human has to. Prefer tool calls over guessing. If asked something outside this context, say so honestly. Route CAVE issues to #shared_cave_seunglab — don't name individuals.
+
+**The feedback triage loop (#citsci_feedback), live since 2026-09-25.** User reports get a triage proposal in their Slack thread. An approver (Amy or Celia) replies approve or dismiss, in the thread or in Admin Hub > Triage; both show the same list. An approved fix is built by Claude in GitHub Actions (seung-lab/ng-extend, workflow "Triage Implement", on Amy's Princeton Claude subscription) on branch triage/<first 8 of the row id>, which deploys a preview at https://triage-<id8>-dot-brain-wire-dot-seung-lab.ue.r.appspot.com/ using the real data. The approver is the tester and is tagged every 10 minutes until they reply: good (deploys live), ship to test (goes live for a real-data test, then good or revert), a question ending in ? (Claude answers), anything else (Claude fixes it, new preview), or hand off to @someone. Claude can also stop and ask a question; the tester's answer sends it back to work. When anyone asks where a fix or Claude's work is, call get_triage_status (with the thread's ts if you are in a triage thread) and answer from the row: its state, preview link, run link, and who it is waiting on. Approvals from before 2026-09-25 were never built by anything unless the row says otherwise. You cannot approve, test, or deploy anything yourself; only people can, by replying in the thread. Mentions of you are skipped by the loop, so they never count as a tester's verdict.`;
 
 async function verifySlackSignature(req, signingSecret) {
   const timestamp = req.header("X-Slack-Request-Timestamp");
@@ -308,6 +333,18 @@ const BOT_TOOLS = [
       type: "object",
       properties: {
         dataset: { type: "string", enum: ["stroeh_mouse_retina", "pni_mec"], description: "Which dataset's CAVE deployment to probe. Default stroeh_mouse_retina." },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "get_triage_status",
+    description: "Read the EyeWire II feedback triage queue (Supabase feedback_triage): user reports, the proposed action, whether it was approved, and where the fix is in the implement-on-approval loop (Claude builds it on a triage/<id> branch, a preview site, the tester's replies, live). Pass thread_ts to get the one report whose Slack thread that is, or query to search report text, or neither for everything still open. Use it whenever someone asks where a fix or Claude's work is.",
+    input_schema: {
+      type: "object",
+      properties: {
+        thread_ts: { type: "string", description: "Slack thread ts of a triage thread in #citsci_feedback." },
+        query: { type: "string", description: "Words from the report, e.g. 'yellow annotation'." },
       },
       required: [],
     },
@@ -507,11 +544,66 @@ async function toolMemory(input) {
   }
 }
 
+const TRIAGE_FIELDS = "id,status,recommendation,source_excerpt,rationale,spec,approver_note,reviewed_by,reviewed_at," +
+  "impl_state,impl_branch,impl_summary,impl_run_url,impl_attempts,preview_url,feedback_log,nag_count," +
+  "approver_slack_id,tested_by,result_note,slack_ts,created_at";
+
+const TRIAGE_STATE_WORDS = {
+  queued: "approved, waiting for Claude to start (the bridge checks every 10 minutes)",
+  implementing: "Claude is building it right now in GitHub Actions",
+  needs_info: "Claude asked a question in the thread and is waiting for the tester's answer",
+  testing: "the fix is on a preview site; the tester has to reply good, ship to test, a question, or what's wrong",
+  changes_requested: "the tester sent it back; Claude is about to rebuild",
+  answer_queued: "the tester asked a question; Claude is about to answer",
+  answering: "Claude is answering the tester's question",
+  deploy_queued: "tested and good; deploy to the live community site is starting",
+  deploying: "deploying to the live community site",
+  deployed: "live",
+  live_test_queued: "going live so the tester can test on real data",
+  live_testing: "live for a real-data test; the tester has to reply good (keep) or revert",
+  revert_queued: "being taken off the live site",
+  reverting: "being taken off the live site",
+  failed: "a run failed or Claude refused; Amy was tagged; reply retry or a correction in the thread",
+};
+
+async function toolTriageStatus({ thread_ts, query }) {
+  let filter;
+  if (thread_ts) filter = `slack_ts=eq.${encodeURIComponent(thread_ts)}`;
+  else if (query) filter = `source_excerpt=ilike.${encodeURIComponent(`*${query.replace(/[*,()]/g, " ").trim()}*`)}`;
+  else filter = "status=in.(proposed,approved)";
+  const r = await fetch(`${EW_SUPABASE_URL}/rest/v1/feedback_triage?${filter}&select=${TRIAGE_FIELDS}&order=created_at.desc&limit=15`, {
+    headers: { apikey: EW_SUPABASE_ANON, Authorization: `Bearer ${EW_SUPABASE_ANON}` },
+  });
+  if (!r.ok) return `(triage read failed: ${r.status})`;
+  const rows = await r.json();
+  if (!rows.length) return "(no matching triage rows)";
+  return rows.map(t => ({
+    report: t.source_excerpt,
+    proposal: t.recommendation,
+    decision: t.status,
+    decided_by: t.reviewed_by,
+    approver_note: t.approver_note,
+    where_it_is: t.impl_state ? `${t.impl_state}: ${TRIAGE_STATE_WORDS[t.impl_state] || ""}` :
+      t.status === "approved" && /spec|feature/.test(t.recommendation) ? "approved before the build loop existed; nothing is building it. Someone can click 'Have Claude build it' in Admin Hub > Triage." :
+      t.status === "done" ? "shipped" : t.status,
+    tester: t.approver_slack_id ? `<@${t.approver_slack_id}>` : null,
+    what_claude_built: t.impl_summary,
+    attempts: t.impl_attempts,
+    preview: t.preview_url,
+    claude_run_or_commit: t.impl_run_url,
+    branch: t.impl_branch ? `https://github.com/seung-lab/ng-extend/tree/${t.impl_branch}` : null,
+    reminders_sent: t.nag_count,
+    recent_thread_replies: (t.feedback_log || []).slice(-3).map(e => `[${e.role}] ${e.text}`),
+    shipped_note: t.result_note,
+  })).map(o => JSON.stringify(o)).join("\n");
+}
+
 async function runTool(name, input) {
   try {
     if (name === "fetch_ng_extend_file") return await toolFetchNgExtendFile(input);
     if (name === "check_cave_health") return await toolCheckCaveHealth(input || {});
     if (name === "memory") return await toolMemory(input);
+    if (name === "get_triage_status") return await toolTriageStatus(input || {});
     return `(unknown tool: ${name})`;
   } catch (e) {
     console.error(`Tool ${name} threw:`, e);
@@ -593,6 +685,15 @@ async function handleMention(event, botToken, anthropicApiKey) {
     }
   }
 
+  // In a triage thread, give the bot that report's status up front, so
+  // "where is your work?" is answered from the real row, not a guess.
+  if (thread_ts && channel === "C0BG5CN71C3") {
+    try {
+      const t = await toolTriageStatus({ thread_ts });
+      if (!t.startsWith("(")) threadContext += `\n\nThis thread is a feedback triage thread. Its row right now:\n${t}`;
+    } catch (e) { console.warn("triage context failed:", e.message); }
+  }
+
   // React with eyes while thinking (gives the user feedback)
   slackPost(botToken, "reactions.add", {
     channel, timestamp: ts, name: "eyes"
@@ -669,6 +770,13 @@ exports.slackBot = onRequest(
     // Case B: @-mentions in allow-listed channels (the existing bot).
     if (!ALLOWED_CHANNEL_IDS.has(event.channel)) {
       res.status(200).send("channel not allowed");
+      // Silence looked like a broken bot. Say where it does answer.
+      if (event.type === "app_mention") {
+        slackPost(slackBotToken.value(), "chat.postMessage", {
+          channel: event.channel, thread_ts: event.thread_ts || event.ts,
+          text: "I only answer in #citsci_feedback, #cave_backend_community and #ai_dev. Ask me there, or ask Amy to add this channel.",
+        }).catch(() => {});
+      }
       return;
     }
     if (event.type !== "app_mention") {
