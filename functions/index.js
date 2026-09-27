@@ -1886,8 +1886,17 @@ exports.ewSecureWrite = onRequest(
     const { action, token, ...args } = req.body || {};
     // Health: proves the service key reaches the database. Returns no data.
     if (action === "health") {
-      try { await ewSb(ewServiceKey.value().trim())("admins?select=id&limit=1"); res.json({ ok: true, db: true }); }
-      catch (e) { res.status(500).json({ ok: false, db: false }); }
+      // Also say WHICH kind of key is configured (never any part of it), so a
+      // public key stored by mistake is caught before the lockdown relies on it.
+      const k = ewServiceKey.value().trim();
+      let kind = "other";
+      if (k.startsWith("sb_secret_")) kind = "sb_secret";
+      else if (k.startsWith("sb_publishable_")) kind = "sb_publishable";
+      else if (k.split(".").length === 3) {
+        try { kind = "legacy_" + JSON.parse(Buffer.from(k.split(".")[1], "base64url").toString()).role; } catch (e) { kind = "unreadable_jwt"; }
+      }
+      try { await ewSb(k)("admins?select=id&limit=1"); res.json({ ok: true, db: true, kind }); }
+      catch (e) { res.status(500).json({ ok: false, db: false, kind }); }
       return;
     }
     const who = await ewVerify(token);
