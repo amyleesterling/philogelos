@@ -1819,3 +1819,147 @@ exports.guideFeedback = onRequest(
     }
   },
 );
+
+// ════════════════════════════════════════════════════════════════════════
+// ewSecureWrite: the only way the EyeWire II app may write notifications,
+// feedback_triage rows, or claim chat announcements.
+//
+// The app talks to Supabase with the PUBLIC anon key and has no database
+// sign in, so the database cannot tell users apart. After the 2026-09-26
+// lockdown (ng-extend supabase-lockdown-notifications-triage.sql) the anon
+// key can only READ notifications, feedback_triage and admins. Writes come
+// here instead, with the caller's CAVE sign in token, which is verified with
+// CAVE itself (/auth/api/v1/user/me). Admin actions also require the verified
+// email to be in the admins table, read with the service key, which the
+// browser never sees. Automation (GitHub Actions) keeps using its own
+// service key and does not come through here.
+// ════════════════════════════════════════════════════════════════════════
+const ewServiceKey = defineSecret("EW_SUPABASE_SERVICE_KEY");
+const EW_SB = "https://javthknksdcrlhiaaptj.supabase.co/rest/v1/";
+const EW_ORIGINS = [/^https:\/\/([a-z0-9-]+-dot-)?brain-wire-dot-seung-lab\.ue\.r\.appspot\.com$/, /^http:\/\/localhost(:\d+)?$/];
+const ewIdentityCache = new Map(); // token -> { email, caveId, at }
+
+async function ewVerify(token) {
+  if (!token || typeof token !== "string" || token.length > 4096) return null;
+  const hit = ewIdentityCache.get(token);
+  if (hit && Date.now() - hit.at < 5 * 60 * 1000) return hit;
+  for (const url of ["https://global.daf-apis.com/auth/api/v1/user/me", "https://minnie.microns-daf.com/auth/api/v1/user/me"]) {
+    try {
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) continue;
+      const me = await r.json();
+      if (me && me.email) {
+        const v = { email: String(me.email).toLowerCase(), caveId: me.id, at: Date.now() };
+        ewIdentityCache.set(token, v);
+        if (ewIdentityCache.size > 500) ewIdentityCache.delete(ewIdentityCache.keys().next().value);
+        return v;
+      }
+    } catch (e) { /* try the next */ }
+  }
+  return null;
+}
+
+function ewSb(key) {
+  return async (path, init = {}) => {
+    const r = await fetch(EW_SB + path, {
+      ...init,
+      headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Prefer: "return=representation", ...(init.headers || {}) },
+    });
+    const text = await r.text();
+    if (!r.ok) throw new Error(`supabase ${r.status}: ${text.slice(0, 200)}`);
+    return text ? JSON.parse(text) : null;
+  };
+}
+
+const EW_NOTIF_FIELDS = ["title", "body", "image_url", "thumbnail_url", "target_type", "target_id", "send_at", "expires_at", "post_to_chat", "chat_posted_at"];
+const EW_TRIAGE_FIELDS = ["status", "proposed_message", "approver_note", "impl_state", "reviewed_by", "reviewed_at", "result_note", "tested_by", "tested_at", "feedback_log", "approver_slack_id"];
+const ewPick = (obj, keys) => Object.fromEntries(Object.entries(obj || {}).filter(([k]) => keys.includes(k)));
+const EW_SELF_TITLES = ["📊 Your Week in Science", "💙 Thank you, for science!"];
+const ewErr = (status, msg) => Object.assign(new Error(msg), { status });
+
+exports.ewSecureWrite = onRequest(
+  { region: "us-central1", secrets: [ewServiceKey], cors: EW_ORIGINS, invoker: "public", maxInstances: 20 },
+  async (req, res) => {
+    if (req.method !== "POST") { res.status(405).json({ error: "POST only" }); return; }
+    const { action, token, ...args } = req.body || {};
+    const who = await ewVerify(token);
+    if (!who) { res.status(401).json({ error: "Sign in to EyeWire II again, then retry." }); return; }
+    const sb = ewSb(ewServiceKey.value());
+    try {
+      const me = (await sb(`users?middleauth_email=ilike.${encodeURIComponent(who.email)}&select=id,display_name,total_edits`))[0];
+      const isAdmin = (await sb(`admins?email=ilike.${encodeURIComponent(who.email)}&select=id`)).length > 0;
+      const needAdmin = () => { if (!isAdmin) throw ewErr(403, "Admins only"); };
+      let out = null;
+      switch (action) {
+        // ── admins ──
+        case "notification.insert": {
+          needAdmin();
+          const row = { ...ewPick(args.row, EW_NOTIF_FIELDS), created_by: (me && me.id) || null };
+          if (!row.title || !row.target_type) throw ewErr(400, "title and target_type required");
+          out = (await sb("notifications", { method: "POST", body: JSON.stringify(row) }))[0];
+          break;
+        }
+        case "notification.update": {
+          needAdmin();
+          out = (await sb(`notifications?id=eq.${Number(args.id)}`, { method: "PATCH", body: JSON.stringify(ewPick(args.fields, EW_NOTIF_FIELDS)) }))[0];
+          break;
+        }
+        case "notification.delete": {
+          needAdmin();
+          await sb(`notifications?id=eq.${Number(args.id)}`, { method: "DELETE" });
+          out = { deleted: Number(args.id) };
+          break;
+        }
+        case "triage.update": {
+          needAdmin();
+          if (!/^[0-9a-f-]{36}$/i.test(String(args.id))) throw ewErr(400, "bad id");
+          out = (await sb(`feedback_triage?id=eq.${args.id}`, { method: "PATCH", body: JSON.stringify(ewPick(args.fields, EW_TRIAGE_FIELDS)) }))[0];
+          break;
+        }
+        // ── any signed in user, fixed shapes only ──
+        case "notification.self": {
+          if (!me) throw ewErr(403, "no EyeWire II profile");
+          const title = String(args.title || "");
+          const okTitle = EW_SELF_TITLES.includes(title) || (title.startsWith("🏆 New Achievement: ") && title.length <= 120);
+          if (!okTitle) throw ewErr(400, "not an allowed self notification");
+          if (title.startsWith("💙") && (me.total_edits || 0) < 3) throw ewErr(400, "not yet");
+          const since = new Date(Date.now() - 6 * 864e5).toISOString();
+          const dup = await sb(`notifications?target_type=eq.user&target_id=eq.${me.id}&title=eq.${encodeURIComponent(title)}&created_at=gte.${since}&select=id`);
+          if (dup.length) { out = dup[0]; break; }
+          const row = { title, body: String(args.body || "").slice(0, 500), image_url: args.image_url || null, thumbnail_url: args.thumbnail_url || null,
+            target_type: "user", target_id: me.id, send_at: new Date().toISOString(), created_by: me.id };
+          out = (await sb("notifications", { method: "POST", body: JSON.stringify(row) }))[0];
+          break;
+        }
+        case "notification.helpReply": {
+          if (!me) throw ewErr(403, "no EyeWire II profile");
+          const target = String(args.targetUserId || "");
+          if (!/^[0-9a-f-]{36}$/i.test(target) || target === me.id) throw ewErr(400, "bad target");
+          // Only to someone who has asked for help.
+          const asked = await sb(`help_requests?user_id=eq.${target}&select=id&limit=1`);
+          if (!asked.length) throw ewErr(400, "that user has no help request");
+          const row = { title: "💬 Response to your help request",
+            body: `${(me.display_name || "Someone")} responded${args.segId ? ` on ${String(args.segId).slice(0, 40)}` : ""}: ${String(args.note || "").slice(0, 160)}`,
+            target_type: "user", target_id: target, send_at: new Date().toISOString(), created_by: me.id };
+          out = (await sb("notifications", { method: "POST", body: JSON.stringify(row) }))[0];
+          break;
+        }
+        case "notification.claimChatPost": {
+          // Exactly one client may post a due announcement to chat: claim it
+          // only while chat_posted_at is still empty and it is due.
+          const now = new Date().toISOString();
+          const rows = await sb(`notifications?id=eq.${Number(args.id)}&chat_posted_at=is.null&post_to_chat=eq.true&send_at=lte.${now}`,
+            { method: "PATCH", body: JSON.stringify({ chat_posted_at: now }) });
+          out = { claimed: rows.length > 0 };
+          break;
+        }
+        default:
+          throw ewErr(400, `unknown action ${action}`);
+      }
+      res.json({ ok: true, data: out });
+    } catch (e) {
+      console.warn("[ewSecureWrite]", action, who.email, e.message);
+      res.status(e.status || 500).json({ error: e.message });
+    }
+  }
+);
