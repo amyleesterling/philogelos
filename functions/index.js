@@ -204,7 +204,7 @@ const ALLOWED_CHANNEL_IDS = new Set([
 // anon key the web app already ships in its bundle; it cannot write here
 // because this bot only ever issues GETs with it.
 const EW_SUPABASE_URL = "https://javthknksdcrlhiaaptj.supabase.co";
-const EW_SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphdnRoa25rc2RjcmxoaWFhcHRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MzUyOTIsImV4cCI6MjA4ODIxMTI5Mn0.APdwuQ-uudyHISBr7Dj6HTylO7qavJ0HhB32E5X434g";
+const EW_SUPABASE_ANON = "sb_publishable_a5r5rfbOuWNoVw0Qb_LtRg_xA4H6Jxb";
 
 
 const NG_EXTEND_SYSTEM_PROMPT = `You are "Amy's Claude", a Slack bot helping the EyeWire II / Seung lab community. You're an expert on Amy Sterling's ng-extend project (EyeWire II community Chrome extension for neuroglancer).
