@@ -615,7 +615,8 @@ async function runTool(name, input) {
 
 async function callClaudeWithTools(anthropicApiKey, messages) {
   let iteration = 0;
-  const maxIterations = 5;
+  // Triage questions can take several lookups (the row, a file or two, memory).
+  const maxIterations = 10;
   const conversationMessages = [...messages];
 
   while (iteration < maxIterations) {
@@ -663,7 +664,7 @@ async function callClaudeWithTools(anthropicApiKey, messages) {
     }
     conversationMessages.push({ role: "user", content: toolResults });
   }
-  return "(max tool iterations reached — give up)";
+  return "Sorry, I looked into this but ran out of steps before I had a good answer. Try asking again more narrowly, or check the admin page: https://connectome.quest/admin/";
 }
 
 async function handleMention(event, botToken, anthropicApiKey) {
