@@ -2024,3 +2024,33 @@ exports.ewSecureUpload = onRequest(
   }catch(e){return res.status(e.status||500).json({error:e.status?e.message:"Image upload failed."});}
  }
 );
+
+exports.ewSheetSync = onRequest(
+ {region:"us-central1",serviceAccount:"eyewire-sheet-sync@ytho-4bff2.iam.gserviceaccount.com",secrets:[ewServiceKey],cors:EW_ORIGINS,invoker:"public",maxInstances:1,concurrency:1,timeoutSeconds:90},
+ async(req,res)=>{
+  res.set("Cache-Control","no-store");
+  if(req.method!=="POST") return res.status(405).json({error:"POST only"});
+  if(Buffer.byteLength(JSON.stringify(req.body||{}))>8192) return res.status(413).json({error:"Input too large"});
+  try {
+   const input=req.body||{};
+   if(input.action==='health') {
+    if(!(await rateLimit(req,false,'sheets:health')).ok) throw ewErr(429,'Please wait.');
+    const {SOURCES}=require('./sheet-policy'),{sheetsApi}=require('./sheet-sync');
+    for(const source of Object.values(SOURCES)) await sheetsApi(admin.credential.applicationDefault(),source.id+'?fields=spreadsheetId');
+    return res.json({ok:true,sheets:Object.keys(SOURCES),keyless:true});
+   }
+   const who=await ewVerify(input.token);
+   if(!who) throw ewErr(401,"Sign in before syncing a cell.");
+   require('./sheet-policy').sourceFor(input);
+   if(!(await rateLimit({ip:who.email},true,"write:sheets")).ok) throw ewErr(429,"Please wait before syncing another cell.");
+   const sb=ewSb(ewServiceKey.value().trim());
+   const me=(await sb('users?middleauth_email=eq.'+encodeURIComponent(who.email)+'&select=id,display_name,username&limit=1'))[0];
+   if(!me) throw ewErr(403,"Create your EyeWire II profile first.");
+   const tasks=await sb('proofreading_tasks?dataset=eq.'+encodeURIComponent(input.dataset)+'&segment_id=eq.'+input.segmentId+'&assigned_to=eq.'+me.id+'&select=*&order=updated_at.desc&limit=1');
+   return res.json(await require('./sheet-sync').syncSheet(input,me,tasks[0],admin.credential.applicationDefault()));
+  } catch(e) {
+   console.warn('[ewSheetSync]',e.status||500,e.status ? e.message : 'upstream failure');
+   return res.status(e.status||503).json({error:e.status?e.message:"Sheet syncing is temporarily unavailable. Your cell is saved; retry syncing shortly."});
+  }
+ }
+);
