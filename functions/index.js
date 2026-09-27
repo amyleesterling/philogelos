@@ -2036,8 +2036,25 @@ exports.ewSheetSync = onRequest(
    if(input.action==='health') {
     if(!(await rateLimit(req,false,'sheets:health')).ok) throw ewErr(429,'Please wait.');
     const {SOURCES}=require('./sheet-policy'),{sheetsApi}=require('./sheet-sync');
-    for(const source of Object.values(SOURCES)) await sheetsApi(admin.credential.applicationDefault(),source.id+'?fields=spreadsheetId');
-    return res.json({ok:true,sheets:Object.keys(SOURCES),keyless:true});
+    for(const source of Object.values(SOURCES)) {
+     const meta=await sheetsApi(admin.credential.applicationDefault(),source.id+'?fields=sheets(properties,protectedRanges)');
+     const sheet=meta.sheets.find(s=>s.properties.sheetId===source.gid);
+     if(!sheet) throw Error('Registered sheet tab missing');
+     const range="'"+sheet.properties.title.replace(/'/g,"''")+"'!A1:AZ10";
+     const grid=await sheetsApi(admin.credential.applicationDefault(),source.id+'/values/'+encodeURIComponent(range));
+     const norm=v=>String(v??'').toLowerCase().replace(/[^a-z0-9]/g,'');
+     const headerRow=(grid.values||[]).findIndex(row=>row.some(v=>['startseg','segmentid','segment','segid'].some(p=>norm(v).includes(p))));
+     if(headerRow<0) throw Error('Registered sheet header missing');
+     const columns=grid.values[headerRow].map((v,i)=>({name:norm(v),i})).filter(({name})=>['proofreader','claimedby','completedby','status','datecomplete','completedtime','finalseg','correctedsoma','somacoord'].some(p=>name.includes(p)));
+     if(!columns.length) throw Error('Registered sheet write columns missing');
+     // Probe only the actual write columns. A whole-sheet probe hits the
+     // owner's protected reference columns even when writeback is permitted.
+     // Identity replacement cannot change a value, even if the text existed.
+     const probe='__eyewire_sync_noop_785ea491a19d4f7bab5b__';
+     console.info('[ewSheetSync] write probe',JSON.stringify({sheet:source.gid,columns,protections:(sheet.protectedRanges||[]).map(p=>({range:p.range,canEdit:p.requestingUserCanEdit,warningOnly:p.warningOnly,unprotected:p.unprotectedRanges}))}));
+     await sheetsApi(admin.credential.applicationDefault(),source.id+':batchUpdate',{method:'POST',body:JSON.stringify({requests:columns.map(({i})=>({findReplace:{find:probe,replacement:probe,range:{sheetId:source.gid,startRowIndex:headerRow+1,endRowIndex:headerRow+2,startColumnIndex:i,endColumnIndex:i+1},matchCase:true}}))})});
+    }
+    return res.json({ok:true,sheets:Object.keys(SOURCES),keyless:true,writable:true});
    }
    const who=await ewVerify(input.token);
    if(!who) throw ewErr(401,"Sign in before syncing a cell.");
@@ -2049,7 +2066,7 @@ exports.ewSheetSync = onRequest(
    const tasks=await sb('proofreading_tasks?dataset=eq.'+encodeURIComponent(input.dataset)+'&segment_id=eq.'+input.segmentId+'&assigned_to=eq.'+me.id+'&select=*&order=updated_at.desc&limit=1');
    return res.json(await require('./sheet-sync').syncSheet(input,me,tasks[0],admin.credential.applicationDefault()));
   } catch(e) {
-   console.warn('[ewSheetSync]',e.status||500,e.status ? e.message : 'upstream failure');
+   console.warn('[ewSheetSync]',e.status||500,e.message);
    return res.status(e.status||503).json({error:e.status?e.message:"Sheet syncing is temporarily unavailable. Your cell is saved; retry syncing shortly."});
   }
  }

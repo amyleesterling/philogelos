@@ -19,7 +19,7 @@ async function sheetsApi(credential,path,init={}) {
     ...init,headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
     redirect:'error',signal:AbortSignal.timeout(20000),
   });
-  if(!r.ok) throw new Error(`Sheet request failed (${r.status})`);
+  if(!r.ok) { const error=await r.json().catch(()=>({})); throw new Error(`Sheet request failed (${r.status}): ${String(error.error?.message||'').slice(0,300)}`); }
   return r.json();
 }
 async function syncSheet(input,me,task,credential) {
