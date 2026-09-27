@@ -1863,7 +1863,9 @@ function ewSb(key) {
   return async (path, init = {}) => {
     const r = await fetch(EW_SB + path, {
       ...init,
-      headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", Prefer: "return=representation", ...(init.headers || {}) },
+      // New style secret keys (sb_secret_...) go in the apikey header only;
+      // the legacy service_role JWT also needs the Bearer header.
+      headers: { apikey: key, ...(key.startsWith("sb_") ? {} : { Authorization: `Bearer ${key}` }), "Content-Type": "application/json", Prefer: "return=representation", ...(init.headers || {}) },
     });
     const text = await r.text();
     if (!r.ok) throw new Error(`supabase ${r.status}: ${text.slice(0, 200)}`);
