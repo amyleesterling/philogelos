@@ -33,6 +33,9 @@ function authorizeData(input, ctx) {
   const read = method === 'GET' || method === 'HEAD';
   const query = new URLSearchParams(String(input.query || ''));
   if (query.toString().length > 12000) fail(400, 'Query too large');
+  // PostgREST clients attach a columns hint for bulk inserts. Derive columns
+  // from our sanitized body instead of trusting or forwarding that hint.
+  query.delete('columns');
   const allowedColumns = new Set(columns[table].split(','));
   for (const [key,value] of query) {
     if (!['select','order','limit','offset','or','and','on_conflict'].includes(key) && !allowedColumns.has(key)) fail(400, 'Unsupported filter');

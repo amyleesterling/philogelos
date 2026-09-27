@@ -43,7 +43,8 @@ test('group enrollment and direct triage writes require authority',()=>{
  assert.throws(()=>plan('working_links','POST','',{shared_group_id:999}),/member/);
 });
 test('upsert forces the authenticated owner and accepts only the compound read key',()=>{
- const p=plan('notification_reads','POST','on_conflict=notification_id,user_id',[{id:5,user_id:b,notification_id:7,dismissed:true}]);
+ const p=plan('notification_reads','POST','on_conflict=notification_id,user_id&columns="id","user_id","notification_id","dismissed"',[{id:5,user_id:b,notification_id:7,dismissed:true}]);
+ assert.equal(p.query.has('columns'),false);
  assert.deepEqual(p.body,[{notification_id:7,dismissed:true,user_id:a}]);
  assert.throws(()=>plan('notification_reads','POST','on_conflict=id',{id:5,notification_id:7}),/conflict/);
 });
