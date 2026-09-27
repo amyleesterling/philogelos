@@ -84,7 +84,9 @@ exports.chat = onRequest({ secrets: [anthropicKey], cors: true, invoker: "public
     return;
   }
 
-  const { userMessage, question, history } = req.body;
+  if (Buffer.byteLength(JSON.stringify(req.body || {})) > 24000) return res.status(413).json({error:"Input too large"});
+  if (!(await rateLimit(req, false, "chat")).ok) return res.status(429).json({error:"rate_limited"});
+  const { userMessage, question, history } = req.body || {};
 
   if (!userMessage || !question) {
     res.status(400).json({ error: "Missing userMessage or question" });
@@ -488,6 +490,7 @@ async function memWrite(files) {
 }
 
 async function toolMemory(input) {
+  if (input.command !== "view") return "Shared memory is read-only. An administrator must review persistent changes.";
   const files = await memRead();
   const p = input.path;
   switch (input.command) {
@@ -950,47 +953,8 @@ exports.caveProxy = onRequest({ cors: false, invoker: "public" }, async (req, re
 // Object path: eyewire-ii/help-screenshots/<yyyy-mm-dd>/<userId>-<segId>-<rand>.png
 // ──────────────────────────────────────────────────────────────────────
 exports.signScreenshotUpload = onRequest(
-  { region: "us-central1", cors: true, invoker: "public", maxInstances: 20 },
-  async (req, res) => {
-    if (req.method !== "POST") {
-      res.status(405).json({ error: "POST only" });
-      return;
-    }
-    const { userId, segId, contentType, size } = req.body || {};
-
-    if (contentType !== "image/png") {
-      res.status(400).json({ error: "contentType must be image/png" });
-      return;
-    }
-    if (typeof size === "number" && size > 12 * 1024 * 1024) {
-      res.status(413).json({ error: "screenshot too large (>12 MB)" });
-      return;
-    }
-
-    const today = new Date().toISOString().slice(0, 10);
-    const safeUser = String(userId || "anon").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 64);
-    const safeSeg  = String(segId  || "x").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 32);
-    const rand = crypto.randomBytes(5).toString("hex");
-    const objectPath = `eyewire-ii/help-screenshots/${today}/${safeUser}-${safeSeg}-${rand}.png`;
-
-    const bucket = admin.storage().bucket();
-    const file = bucket.file(objectPath);
-
-    const expiresAt = Date.now() + 5 * 60 * 1000;
-    const [uploadUrl] = await file.getSignedUrl({
-      version: "v4",
-      action: "write",
-      expires: expiresAt,
-      contentType: "image/png",
-    });
-
-    // Public URL — relies on the bucket having public read on this prefix
-    // (gsutil iam ch allUsers:objectViewer ...). If you'd prefer not to
-    // expose objects publicly, swap this for a long-lived signed read URL.
-    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${objectPath.split("/").map(encodeURIComponent).join("/")}`;
-
-    res.json({ uploadUrl, publicUrl, expiresAt });
-  },
+  { region: "us-central1", cors: true, invoker: "public", maxInstances: 2 },
+  async (req, res) => res.status(410).json({error:"This upload endpoint has been retired."})
 );
 
 // ──────────────────────────────────────────────────────────────────────
@@ -1354,33 +1318,33 @@ const RL_TIERS = {
 };
 
 function clientIp(req) {
-  const xff = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
-  return xff || req.ip || "unknown";
+  return req.ip || req.socket?.remoteAddress || "unknown";
 }
 
 // Atomically check+increment the per-IP windows. Returns {ok} or {ok:false,scope}.
 async function rateLimit(req, loggedIn, prefix = "a") {
-  const ip = clientIp(req);
-  const tier = loggedIn ? RL_TIERS.authed : RL_TIERS.anon;
-  const ref = db.collection("guide_ratelimit").doc(`${prefix}:${ip}`);
+  // Browser login flags do not establish identity. Keep the anonymous tier.
+  const tier = prefix.startsWith("write:") ? {perMin:60,perDay:5000} : RL_TIERS.anon;
+  const id = crypto.createHash("sha256").update(clientIp(req)).digest("hex");
+  const refs = [db.collection("guide_ratelimit").doc(prefix+":"+id), db.collection("guide_ratelimit").doc(prefix+":global")];
   try {
-    return await db.runTransaction(async (tx) => {
-      const snap = await tx.get(ref);
-      const now = Date.now();
-      const d = snap.exists ? snap.data() : {};
-      let minStart = d.minStart || 0, minCount = d.minCount || 0;
-      let dayStart = d.dayStart || 0, dayCount = d.dayCount || 0;
-      if (now - minStart >= 60000) { minStart = now; minCount = 0; }
-      if (now - dayStart >= 86400000) { dayStart = now; dayCount = 0; }
-      if (minCount >= tier.perMin) return { ok: false, scope: "minute" };
-      if (dayCount >= tier.perDay) return { ok: false, scope: "day" };
-      tx.set(ref, { minStart, minCount: minCount + 1, dayStart, dayCount: dayCount + 1 });
-      return { ok: true };
+    return await db.runTransaction(async tx => {
+      const snapshots = await Promise.all(refs.map(ref=>tx.get(ref)));
+      const now=Date.now(), next=[];
+      for(let i=0;i<refs.length;i++) {
+        const d=snapshots[i].exists?snapshots[i].data():{};
+        const limits=i ? (prefix.startsWith("write:") ? {perMin:300,perDay:20000} : {perMin:60,perDay:1500}) : tier;
+        const minute=now-(d.minStart||0)>=60000, day=now-(d.dayStart||0)>=86400000;
+        const minCount=minute?0:(d.minCount||0), dayCount=day?0:(d.dayCount||0);
+        if(minCount>=limits.perMin || dayCount>=limits.perDay) return {ok:false,scope:dayCount>=limits.perDay?"day":"minute"};
+        next.push({minStart:minute?now:d.minStart,minCount:minCount+1,dayStart:day?now:d.dayStart,dayCount:dayCount+1});
+      }
+      refs.forEach((ref,i)=>tx.set(ref,next[i]));
+      return {ok:true};
     });
-  } catch (e) {
-    // Never let a rate-limit hiccup take down the endpoint — fail open.
-    console.error("[guide] rateLimit error:", e);
-    return { ok: true };
+  } catch(e) {
+    console.error("[rateLimit] unavailable");
+    return {ok:false,scope:"unavailable"};
   }
 }
 
@@ -1408,6 +1372,7 @@ exports.guideAssistant = onRequest(
     if (!originOk) { res.status(403).json({ error: "origin not allowed" }); return; }
     if (req.method !== "POST") { res.status(405).json({ error: "POST only" }); return; }
 
+    if (Buffer.byteLength(JSON.stringify(req.body || {})) > 48000) return res.status(413).json({error:"Input too large"});
     const { message, history, appContext, uiReference } = req.body || {};
     if (!message || typeof message !== "string") {
       res.status(400).json({ error: "missing message" });
@@ -1835,6 +1800,7 @@ exports.guideFeedback = onRequest(
 // service key and does not come through here.
 // ════════════════════════════════════════════════════════════════════════
 const ewServiceKey = defineSecret("EW_SUPABASE_SERVICE_KEY");
+const { authorizeData } = require("./community-data");
 const EW_SB = "https://javthknksdcrlhiaaptj.supabase.co/rest/v1/";
 const EW_ORIGINS = [/^https:\/\/([a-z0-9-]+-dot-)?brain-wire-dot-seung-lab\.ue\.r\.appspot\.com$/, /^http:\/\/localhost(:\d+)?$/];
 const ewIdentityCache = new Map(); // token -> { email, caveId, at }
@@ -1845,7 +1811,7 @@ async function ewVerify(token) {
   if (hit && Date.now() - hit.at < 5 * 60 * 1000) return hit;
   for (const url of ["https://global.daf-apis.com/auth/api/v1/user/me", "https://minnie.microns-daf.com/auth/api/v1/user/me"]) {
     try {
-      const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, redirect: "error", signal: AbortSignal.timeout(8000) });
       if (!r.ok) continue;
       const me = await r.json();
       if (me && me.email) {
@@ -1863,6 +1829,7 @@ function ewSb(key) {
   return async (path, init = {}) => {
     const r = await fetch(EW_SB + path, {
       ...init,
+      redirect: "error", signal: AbortSignal.timeout(15000),
       // New style secret keys (sb_secret_...) go in the apikey header only;
       // the legacy service_role JWT also needs the Bearer header.
       headers: { apikey: key, ...(key.startsWith("sb_") ? {} : { Authorization: `Bearer ${key}` }), "Content-Type": "application/json", Prefer: "return=representation", ...(init.headers || {}) },
@@ -1883,6 +1850,7 @@ exports.ewSecureWrite = onRequest(
   { region: "us-central1", secrets: [ewServiceKey], cors: EW_ORIGINS, invoker: "public", maxInstances: 20 },
   async (req, res) => {
     if (req.method !== "POST") { res.status(405).json({ error: "POST only" }); return; }
+    if (Buffer.byteLength(JSON.stringify(req.body || {})) > 64000) return res.status(413).json({error:"Input too large"});
     const { action, token, ...args } = req.body || {};
     // Health: proves the service key reaches the database. Returns no data.
     if (action === "health") {
@@ -1901,10 +1869,11 @@ exports.ewSecureWrite = onRequest(
     }
     const who = await ewVerify(token);
     if (!who) { res.status(401).json({ error: "Sign in to EyeWire II again, then retry." }); return; }
+    if (!(await rateLimit({ip:who.email}, true, "write:secure")).ok) return res.status(429).json({error:"Please wait before sending another change."});
     const sb = ewSb(ewServiceKey.value().trim()); // a pasted key can carry a stray newline
     try {
-      const me = (await sb(`users?middleauth_email=ilike.${encodeURIComponent(who.email)}&select=id,display_name,total_edits`))[0];
-      const isAdmin = (await sb(`admins?email=ilike.${encodeURIComponent(who.email)}&select=id`)).length > 0;
+      const me = (await sb(`users?middleauth_email=eq.${encodeURIComponent(who.email)}&select=id,display_name,total_edits`))[0];
+      const isAdmin = (await sb(`admins?email=eq.${encodeURIComponent(who.email)}&select=id`)).length > 0;
       const needAdmin = () => { if (!isAdmin) throw ewErr(403, "Admins only"); };
       let out = null;
       switch (action) {
@@ -1962,10 +1931,11 @@ exports.ewSecureWrite = onRequest(
           break;
         }
         case "notification.claimChatPost": {
+          needAdmin();
           // Exactly one client may post a due announcement to chat: claim it
           // only while chat_posted_at is still empty and it is due.
           const now = new Date().toISOString();
-          const rows = await sb(`notifications?id=eq.${Number(args.id)}&chat_posted_at=is.null&post_to_chat=eq.true&send_at=lte.${now}`,
+          const rows = await sb(`notifications?id=eq.${Number(args.id)}&chat_posted_at=is.null&post_to_chat=eq.true&send_at=lte.${now}&or=(expires_at.is.null,expires_at.gt.${now})`,
             { method: "PATCH", body: JSON.stringify({ chat_posted_at: now }) });
           out = { claimed: rows.length > 0 };
           break;
@@ -1976,7 +1946,81 @@ exports.ewSecureWrite = onRequest(
       res.json({ ok: true, data: out });
     } catch (e) {
       console.warn("[ewSecureWrite]", action, who.email, e.message);
-      res.status(e.status || 500).json({ error: e.message });
+      res.status(e.status || 500).json({ error: e.status ? e.message : "The operation could not be completed." });
     }
   }
+);
+
+
+exports.ewCommunityData = onRequest(
+  { region: "us-central1", secrets: [ewServiceKey], cors: EW_ORIGINS, invoker: "public", maxInstances: 20 },
+  async (req, res) => {
+    res.set("Cache-Control", "no-store");
+    if (req.method !== "POST") return res.status(405).json({message:"POST only"});
+    if (Buffer.byteLength(JSON.stringify(req.body || {})) > 256 * 1024) return res.status(413).json({message:"Request too large"});
+    try {
+      const input = req.body || {};
+      const who = input.token ? await ewVerify(input.token) : null;
+      if (input.token && !who) return res.status(401).json({message:"Sign in again."});
+      const key = ewServiceKey.value().trim(), sb = ewSb(key);
+      const me = who ? (await sb("users?middleauth_email=eq."+encodeURIComponent(who.email)+"&select=id,display_name,username&limit=1"))[0] : null;
+      const isAdmin = who ? (await sb("admins?email=eq."+encodeURIComponent(who.email)+"&select=id&limit=1")).length > 0 : false;
+      const groups = me ? (await sb("user_group_members?user_id=eq."+me.id+"&select=group_id")).map(r=>r.group_id) : [];
+      const plan = authorizeData(input, {who,me,isAdmin,groups,now:new Date().toISOString()});
+      if (plan.method !== "GET" && plan.method !== "HEAD") {
+        const quota = await rateLimit({ip:who.email}, true, "write:"+plan.table);
+        if (!quota.ok) throw ewErr(429,"Please wait before sending another change.");
+      }
+      if (plan.table === "chat_messages" && plan.body?.notification_id != null) {
+        const notices=await sb("notifications?id=eq."+Number(plan.body.notification_id)+"&target_type=eq.all&select=id&limit=1");
+        if(!notices.length) throw ewErr(403,"Only public announcements may be posted to chat.");
+      }
+      const headers = {apikey:key, ...(key.startsWith("sb_")?{}:{Authorization:"Bearer "+key}), "Content-Type":"application/json"};
+      headers.Accept = input.accept === "application/vnd.pgrst.object+json" ? input.accept : "application/json";
+      const preferences = ["return=representation"];
+      if (String(input.prefer).includes("count=exact")) preferences.push("count=exact");
+      if (["notification_reads","user_group_members"].includes(plan.table) && plan.method === "POST" && plan.query.has("on_conflict")) preferences.push("resolution=merge-duplicates");
+      headers.Prefer = preferences.join(",");
+      if (typeof input.range === "string" && /^\d+-\d+$/.test(input.range)) {
+        const [from,to] = input.range.split("-").map(Number);
+        if (to < from || to-from > 499 || to > 100000) throw ewErr(400,"Invalid range");
+        headers.Range = input.range;
+      }
+      const upstream = await fetch(EW_SB+plan.table+"?"+plan.query.toString(), {method:plan.method,headers,
+        body:plan.body === undefined ? undefined : JSON.stringify(plan.body), redirect:"error", signal:AbortSignal.timeout(15000)});
+      let body = await upstream.text();
+      // Expected API errors are useful to the SDK; hide database diagnostics.
+      if (!upstream.ok) {
+        let code; try { code = JSON.parse(body).code; } catch {}
+        body = JSON.stringify({code, message:upstream.status===406 ? "Requested row was not found or was not unique." : "The requested operation could not be completed."});
+      }
+      const responseHeaders = {"Content-Type":"application/json"};
+      for (const name of ["content-range","range-unit"]) if (upstream.headers.has(name)) responseHeaders[name]=upstream.headers.get(name);
+      return res.json({status:upstream.status,headers:responseHeaders,body});
+    } catch (e) {
+      console.warn("[ewCommunityData]", e.status || 500);
+      return res.status(e.status || 500).json({message:e.status ? e.message : "Data is temporarily unavailable."});
+    }
+  }
+);
+
+
+exports.ewSecureUpload = onRequest(
+ {region:"us-central1",secrets:[ewServiceKey],cors:EW_ORIGINS,invoker:"public",maxInstances:10},
+ async(req,res)=>{
+  res.set("Cache-Control","no-store");
+  if(req.method!=="POST")return res.status(405).json({error:"POST only"});
+  try {
+   const input=req.body||{}, who=await ewVerify(input.token);
+   if(!who)throw ewErr(401,"Sign in first.");
+   const key=ewServiceKey.value().trim(), sb=ewSb(key);
+   const isAdmin=(await sb("admins?email=eq."+encodeURIComponent(who.email)+"&select=id&limit=1")).length>0;
+   const upload=require("./upload-policy").prepareUpload(input,who,isAdmin);
+   if(!(await rateLimit({ip:who.email},false,"upload")).ok)throw ewErr(429,"Please wait before uploading another image.");
+   const url="https://javthknksdcrlhiaaptj.supabase.co/storage/v1/object/admin-uploads/"+upload.path;
+   const r=await fetch(url,{method:"POST",headers:{apikey:key,...(key.startsWith("sb_")?{}:{Authorization:"Bearer "+key}),"Content-Type":upload.contentType,"x-upsert":"false"},body:upload.bytes,redirect:"error",signal:AbortSignal.timeout(30000)});
+   if(!r.ok)throw ewErr(502,"Image storage is temporarily unavailable.");
+   return res.json({url:url.replace("/object/","/object/public/")});
+  }catch(e){return res.status(e.status||500).json({error:e.status?e.message:"Image upload failed."});}
+ }
 );
