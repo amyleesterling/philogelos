@@ -1884,7 +1884,7 @@ exports.ewSecureWrite = onRequest(
     const { action, token, ...args } = req.body || {};
     const who = await ewVerify(token);
     if (!who) { res.status(401).json({ error: "Sign in to EyeWire II again, then retry." }); return; }
-    const sb = ewSb(ewServiceKey.value());
+    const sb = ewSb(ewServiceKey.value().trim()); // a pasted key can carry a stray newline
     try {
       const me = (await sb(`users?middleauth_email=ilike.${encodeURIComponent(who.email)}&select=id,display_name,total_edits`))[0];
       const isAdmin = (await sb(`admins?email=ilike.${encodeURIComponent(who.email)}&select=id`)).length > 0;
