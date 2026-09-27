@@ -1884,6 +1884,12 @@ exports.ewSecureWrite = onRequest(
   async (req, res) => {
     if (req.method !== "POST") { res.status(405).json({ error: "POST only" }); return; }
     const { action, token, ...args } = req.body || {};
+    // Health: proves the service key reaches the database. Returns no data.
+    if (action === "health") {
+      try { await ewSb(ewServiceKey.value().trim())("admins?select=id&limit=1"); res.json({ ok: true, db: true }); }
+      catch (e) { res.status(500).json({ ok: false, db: false }); }
+      return;
+    }
     const who = await ewVerify(token);
     if (!who) { res.status(401).json({ error: "Sign in to EyeWire II again, then retry." }); return; }
     const sb = ewSb(ewServiceKey.value().trim()); // a pasted key can carry a stray newline
